@@ -4,9 +4,6 @@ import threading
 from fastapi import WebSocket, WebSocketDisconnect
 from pointcloud_websocket.connection_manager import ConnectionManager
 from pointcloud_websocket.middleware.timeout import TimeoutMiddleware
-from pointcloud_websocket.services.ros_client import RosClient
-from pointcloud_websocket.services.ros_client_trajectory import RosClientTrajectory
-from pointcloud_websocket.services.ros_client_xyz import RosClientXYZ
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
@@ -31,7 +28,10 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
                     if message["type"] == "subscribe":
                         topic_name = message["topic"]
-                        active_topics[topic_name] = ros_client
+                        if topic_name not in active_topics:
+                            if topic_name == "bson":
+                                sender = ROSClient(topic_name)
+                        active_topics[topic_name] = sender
 
                     elif message["type"] == "unsubscribe":
                         topic_name = message["topic"]
@@ -50,8 +50,8 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
             try:
                 topics_to_remove = []
                 while True:
-                    for topic_name, ros_client in active_topics.items():
-                        data = ros_client.get_data()
+                    for topic_name, sender in active_topics.items():
+                        data = sender.get_data()
                         if data != None:
                             logger.debug(f"Data send for topic: {topic_name}")
                             await manager.send_bytes(data, websocket)
@@ -89,6 +89,6 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
         except WebSocketDisconnect:
             # 切断時の処理
-            for ros_client in active_topics.values():
-                ros_client.cleanup()
+            for sender in active_topics.values():
+                sender.cleanup()
             manager.disconnect(websocket)
