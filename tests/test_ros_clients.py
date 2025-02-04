@@ -1,16 +1,27 @@
-import pytest
-from src.pointcloud_websocket.services.ros_client_xyz import RosClientXYZ
-from src.pointcloud_websocket.services.ros_client_trajectory import RosClientTrajectory
-from src.pointcloud_websocket.services.ros_client import RosClient
+import asyncio
+import websockets
+import json
 
-def test_ros_client_xyz():
-    client = RosClientXYZ("/fake_topic")
-    assert client.get_data() is None
+async def websocket_client():
+    uri = "ws://localhost:8080/ws"  # WebSocketサーバーのアドレス
+    async with websockets.connect(uri) as websocket:
+        print("Connected to WebSocket server.")
 
-def test_ros_client_trajectory():
-    client = RosClientTrajectory("/fake_topic")
-    assert client.get_data() is None
+        # サブスクライブメッセージを送信
+        subscribe_message = json.dumps({
+            "type": "subscribe",
+            "topic": "/scan/downsampled"
+        })
+        await websocket.send(subscribe_message)
+        print(f"Sent: {subscribe_message}")
 
-def test_ros_client():
-    client = RosClient("/fake_topic")
-    assert client.get_data() is None
+        try:
+            while True:
+                # メッセージを受信
+                data = await websocket.recv()
+                print(f"Received: {data}")
+        except websockets.exceptions.ConnectionClosed:
+            print("Connection closed.")
+
+if __name__ == "__main__":
+    asyncio.run(websocket_client())

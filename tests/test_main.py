@@ -1,5 +1,8 @@
-from fastapi.testclient import TestClient
-from src.pointcloud_websocket.main import setup_websocket, websocket_endpoint
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from pointcloud_websocket.middleware.timeout import TimeoutMiddleware
+from pointcloud_websocket.main import setup_websocket, websocket_endpoint
 from fastapi import FastAPI, WebSocket
 
 app = FastAPI()
@@ -11,7 +14,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.add_middleware(TimeoutMiddleware, timeout=10)
 # WebSocket サーバーをセットアップ
 ws_manager = setup_websocket()
 

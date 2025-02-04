@@ -1,13 +1,12 @@
 import asyncio
 from asyncio.log import logger
 import threading
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from src.pointcloud_websocket.connection_manager import ConnectionManager
-from src.pointcloud_websocket.middleware.timeout import TimeoutMiddleware
-from src.pointcloud_websocket.services.ros_client import RosClient
-from src.pointcloud_websocket.services.ros_client_trajectory import RosClientTrajectory
-from src.pointcloud_websocket.services.ros_client_xyz import RosClientXYZ
+from fastapi import WebSocket, WebSocketDisconnect
+from pointcloud_websocket.connection_manager import ConnectionManager
+from pointcloud_websocket.middleware.timeout import TimeoutMiddleware
+from pointcloud_websocket.services.ros_client import RosClient
+from pointcloud_websocket.services.ros_client_trajectory import RosClientTrajectory
+from pointcloud_websocket.services.ros_client_xyz import RosClientXYZ
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
@@ -15,11 +14,7 @@ async def read_root():
 
 def setup_websocket():
     """
-    WebSocket エンドポイントを FastAPI に追加
-
-    Args:
-        app (FastAPI): FastAPI インスタンス
-        path (str): WebSocket のエンドポイント
+    managerを作成して返す
     """
     manager = ConnectionManager()
     return manager
@@ -36,19 +31,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
                     if message["type"] == "subscribe":
                         topic_name = message["topic"]
-
-                        if topic_name not in active_topics:
-                            if topic_name == '/scan/downsampled' or topic_name == '/map/3d/diff' or topic_name == '/map/3d/full':
-                                ros_client = RosClientXYZ(topic_name)
-                            elif topic_name == '/trajectory/diff':
-                                ros_client = RosClientTrajectory(topic_name)
-                            else:
-                                ros_client = RosClient(topic_name)
-
-                            thread = threading.Thread(target=ros_client.connect_subscription)
-                            thread.daemon = True
-                            thread.start()
-                            active_topics[topic_name] = ros_client
+                        active_topics[topic_name] = ros_client
 
                     elif message["type"] == "unsubscribe":
                         topic_name = message["topic"]
@@ -72,10 +55,6 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         if data != None:
                             logger.debug(f"Data send for topic: {topic_name}")
                             await manager.send_bytes(data, websocket)
-
-                            #  map/3d/full は一度データを送信したらクリアする
-                            if topic_name == '/map/3d/full':
-                                topics_to_remove.append(topic_name)
 
                     # マークされたトピックを削除
                     for topic_name in topics_to_remove:
