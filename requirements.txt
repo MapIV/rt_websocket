@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+rospy
+pypcd
+bson
+pytest
+pytest-asyncio
+httpx
