@@ -3,9 +3,9 @@ import numpy as np
 import cv2
 
 class ByteSender:
-    def __init__(self, topic_name):
+    def __init__(self, topic_name,video_path):
         self.__topic_name =  topic_name
-        self.__video_path = "src/sample_video/test_video1.mp4"
+        self.__video_path = video_path
         self.__cap = cv2.VideoCapture(self.__video_path)
         self.__height = self.__cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.__width = self.__cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -23,6 +23,7 @@ class ByteSender:
             frame_bytes = frame.flatten().tobytes()
 
             data = {
+                "header": self.__topic_name,
                 "width": self.__width,
                 "height": self.__height,
                 "pixel_size": 24,  # RGB (3チャンネル)なら24bit
