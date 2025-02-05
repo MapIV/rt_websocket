@@ -16,8 +16,9 @@ function initWebsocket() {
   ws.value.onmessage = async (event) => {
     try {
       const arrayBuffer = await event.data.arrayBuffer();
+      console.log(`Received ${arrayBuffer.byteLength} bytes`);
       const uint8Array = new Uint8Array(arrayBuffer);
-
+      console.log(`Received ${uint8Array.length} bytes`);
       // header(width, height, pixel_size）
       const headerArray = new Uint32Array(arrayBuffer.slice(0, 12)); // 3 * 4 bytes
       const width = headerArray[0];

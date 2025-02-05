@@ -20,6 +20,7 @@ class VideoSender:
 
             if not ret:
                 print("Frame read failed.")
+                self.__cap.release()
                 return None  # 動画の終端なら None を返す
 
             # フレームを NumPy の ndarray → bytes に変換

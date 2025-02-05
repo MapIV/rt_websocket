@@ -1,9 +1,12 @@
 import asyncio
 from asyncio.log import logger
 import os
+import time
 from fastapi import WebSocket, WebSocketDisconnect
 from pointcloud_websocket.connection_manager import ConnectionManager
 from pointcloud_websocket.services.video_sender import VideoSender
+
+TIMEOUT_SECONDS = 5  # 5秒以上リクエストが来なかったら切断
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
@@ -16,10 +19,30 @@ def setup_manager():
     manager = ConnectionManager()
     return manager
 
-
+async def check_timeout(websocket: WebSocket, last_request_time: dict, manager: ConnectionManager, active_topics: dict):
+    """ 
+    一定時間リクエストが来なかったら WebSocket を閉じる
+    """
+    while True:
+        await asyncio.sleep(1)  # 1秒ごとにチェック
+        if time.time() - last_request_time['time'] > TIMEOUT_SECONDS:
+            print(f"last_request_time: {last_request_time}")
+            print(f"Timeout: No request_data for {TIMEOUT_SECONDS}s. Closing WebSocket.")
+            logger.info("Client disconnected")
+            for sender in active_topics.values():
+                sender.cleanup()
+            manager.disconnect(websocket)
+            await websocket.close()
+            break
+        
 async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
     await manager.connect(websocket)
     active_topics = {}  
+    last_request_time = {"time": time.time()} 
+
+    # タイムアウトチェックのタスクを開始
+    asyncio.create_task(check_timeout(websocket, last_request_time, manager, active_topics))
+
     try:
         while True:
             message = await websocket.receive_json()
@@ -44,6 +67,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
             elif message["type"] == "request_data":
                 topic_name = message["topic"]
+                last_request_time["time"] = time.time()
                 print(f'topic_name: {topic_name}')
                 if topic_name in active_topics:
                     print(f"topic name in active_topics")
@@ -53,7 +77,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                     print(f"data: {type(data)}")
                     if data:
                         await manager.send_bytes(data, websocket)
-                    print(f"Sent data to {topic_name}")
+                        print(f"Sent data to {topic_name}")
 
             print(f' finish message: {message}')
 
