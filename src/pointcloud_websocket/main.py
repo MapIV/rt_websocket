@@ -1,6 +1,5 @@
 import asyncio
 from asyncio.log import logger
-import threading
 from fastapi import WebSocket, WebSocketDisconnect
 from pointcloud_websocket.connection_manager import ConnectionManager
 from pointcloud_websocket.services.bson_sender import BsonSender
@@ -27,9 +26,10 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                     logger.debug(f"Message received: {message}")
 
                     if message["type"] == "subscribe":
+                        topic_model = message["model"]
                         topic_name = message["topic"]
                         if topic_name not in active_topics:
-                            if topic_name == "bson":
+                            if topic_model== "bson":
                                 sender = BsonSender(topic_name)
                         active_topics[topic_name] = sender
 
@@ -38,6 +38,14 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         if topic_name in active_topics:
                             active_topics[topic_name].cleanup()
                             del active_topics[topic_name]
+
+                    elif message["type"] == "request_data":
+                        topic_name = message["topic"]
+                        if topic_name in active_topics:
+                            sender = active_topics[topic_name]
+                            data = sender.get_data()
+                            if data:
+                                await manager.send_bytes(data, websocket)
 
             except WebSocketDisconnect:
                     logger.info(f"Client disconnected during message receiving")
