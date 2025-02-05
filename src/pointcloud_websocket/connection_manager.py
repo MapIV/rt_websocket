@@ -14,8 +14,9 @@ class ConnectionManager:
         logger.info("WebSocket connected.")
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-        logger.info("WebSocket disconnected.")
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            logger.info("WebSocket disconnected.")
 
     async def send_bytes(self, message: bytes, websocket: WebSocket):
         await websocket.send_bytes(message)

@@ -1,8 +1,9 @@
 fastapi
 uvicorn
-rospy
+websockets
 pypcd
 bson
 pytest
 pytest-asyncio
 httpx
+opencv-python
