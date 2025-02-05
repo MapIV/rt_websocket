@@ -3,13 +3,13 @@ from asyncio.log import logger
 import threading
 from fastapi import WebSocket, WebSocketDisconnect
 from pointcloud_websocket.connection_manager import ConnectionManager
-from pointcloud_websocket.middleware.timeout import TimeoutMiddleware
+from pointcloud_websocket.services.bson_sender import BsonSender
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
     return {"message": "Hello World!"}
 
-def setup_websocket():
+def setup_manager():
     """
     managerを作成して返す
     """
@@ -30,7 +30,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         topic_name = message["topic"]
                         if topic_name not in active_topics:
                             if topic_name == "bson":
-                                sender = ROSClient(topic_name)
+                                sender = BsonSender(topic_name)
                         active_topics[topic_name] = sender
 
                     elif message["type"] == "unsubscribe":
@@ -48,20 +48,12 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
         async def send_data():
             try:
-                topics_to_remove = []
                 while True:
                     for topic_name, sender in active_topics.items():
                         data = sender.get_data()
                         if data != None:
                             logger.debug(f"Data send for topic: {topic_name}")
                             await manager.send_bytes(data, websocket)
-
-                    # マークされたトピックを削除
-                    for topic_name in topics_to_remove:
-                        if topic_name in active_topics:
-                            active_topics[topic_name].cleanup()
-                            del active_topics[topic_name]
-                            topics_to_remove = []
 
                     await asyncio.sleep(0.01)
 
