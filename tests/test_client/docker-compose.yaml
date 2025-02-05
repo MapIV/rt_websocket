@@ -1,0 +1,9 @@
+services:
+  vue:
+    build: ./test_frontend/
+    volumes:
+      - type: bind
+        source: ./test_frontend/vue
+        target: /vue
+    ports:
+      - "5173:5173"
