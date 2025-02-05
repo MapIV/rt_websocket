@@ -1,85 +1,98 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+const ws = ref<WebSocket | null>(null)
+
+function initWebsocket() {
+  ws.value = new WebSocket("ws://localhost:8080/ws");
+
+  ws.value.onopen = () => {
+    console.log("Websocket connected");
+    subscribe();
+
+    // request first data
+    requestData();
+  };
+
+  ws.value.onmessage = async (event) => {
+    try {
+      const arrayBuffer = await event.data.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // header(width, height, pixel_size）
+      const headerArray = new Uint32Array(arrayBuffer.slice(0, 12)); // 3 * 4 bytes
+      const width = headerArray[0];
+      const height = headerArray[1];
+      const pixelSize = headerArray[2];
+      console.log(`Received Frame - Width: ${width}, Height: ${height}, PixelSize: ${pixelSize}`);
+
+      // image data
+      const imageDataArray  = uint8Array.slice(12);
+      if (pixelSize === 24) {
+            // RGB → RGBA に変換
+            const rgbaArray = new Uint8ClampedArray(width * height * 4);
+            for (let i = 0, j = 0; i < imageDataArray.length; i += 3, j += 4) {
+                rgbaArray[j] = imageDataArray[i];     // R
+                rgbaArray[j + 1] = imageDataArray[i + 1]; // G
+                rgbaArray[j + 2] = imageDataArray[i + 2]; // B
+                rgbaArray[j + 3] = 255; // A (不透明)
+            }
+
+            // Canvas に描画
+            const canvas = document.getElementById("videoCanvas") as HTMLCanvasElement;
+            if (canvas) {
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  const imageData = new ImageData(rgbaArray, width, height);
+                  ctx.putImageData(imageData, 0, 0);
+                } else {
+                  console.error("Error: Unable to get 2D context from canvas.");
+                }
+            } else {
+              console.error("Error: Canvas element not found.");
+            }
+        }
+      requestData();
+    }
+    catch (e) {
+      console.error("Error parsing message: " + e);
+    }
+  };
+
+  ws.value.onclose = () => {
+    console.log("Websocket closed");
+  };
+
+  ws.value.onerror = (error) => {
+    console.error("Websocket error: " + error);
+  };
+}
+
+function subscribe() {
+  if (ws.value) {
+      ws.value.send(JSON.stringify({
+          type: "subscribe",
+          topic: "video_stream"
+      }));
+    }
+}
+
+function requestData() {
+  if (ws.value) {
+    ws.value.send(JSON.stringify({
+        type: "request_data",
+        topic: "video_stream"
+    }));
+  }
+}
+
+onMounted(() => {
+  initWebsocket();
+});
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <h1>test</h1>
+  <canvas id="videoCanvas" width="1280" height="1000"></canvas>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
