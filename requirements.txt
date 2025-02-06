@@ -2,9 +2,9 @@ fastapi
 uvicorn
 websockets
 pypcd
-bson
 pytest
 pytest-asyncio
 httpx
 opencv-python
 pypcd4
+bson

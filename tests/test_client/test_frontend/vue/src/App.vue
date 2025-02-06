@@ -104,8 +104,11 @@ async function create_video (event: { data: { arrayBuffer: () => any; }; },topic
       requestData(topic);
 }
 
-async function create_pcd (event: any, topic: string) {
-  const data = BSON.deserialize(await event.data)
+async function create_pcd (event: MessageEvent, topic: string) {
+  const arrayBuffer = await event.data.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  console.log("Received PCD file");
+  const data = BSON.deserialize(uint8Array)
 
   if (Array.isArray(data.points) && data.points.length  !=  0 && viewer.value) {
     viewer.value.createPointCloud(data.points);

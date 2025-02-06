@@ -62,7 +62,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
 
                     if topic_name == "pcdfile":
                         # for testing, we are using a sample pcd file
-                        pcd_path = os.path.abspath("../src/sample_pcd/test_pcd1.pcd")
+                        pcd_path = os.path.abspath("../src/sample_pcdfile/map-18400_-93500_converted_converted.pcd")
                         print(f'pcd_path: {pcd_path}')
                         sender = BsonSender(topic_name, pcd_path)
 
@@ -84,16 +84,16 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                 print(f'topic_name: {topic_name}')
 
                 if topic_name in active_topics:
-                    print(f"topic name in active_topics")
+                    # print(f"topic name in active_topics")
                     sender = active_topics[topic_name]
-                    print(f"sender: {sender}")
+                    # print(f"sender: {sender}")
                     data = sender.get_data()
                     print(f"data: {type(data)}")
                     if data:
                         await manager.send_bytes(data, websocket)
                         print(f"Sent data to {topic_name}")
 
-            print(f' finish message: {message}')
+            # print(f' finish message: {message}')
 
     except WebSocketDisconnect:
         logger.info("Client disconnected")

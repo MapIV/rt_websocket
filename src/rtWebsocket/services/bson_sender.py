@@ -3,7 +3,7 @@ import numpy as np
 from pypcd4 import PointCloud
 
 class BsonSender:
-    def __init__(self, topic_name: str, file_path: str, chunk_size: int = 1024 * 1024):
+    def __init__(self, topic_name: str, file_path: str, chunk_size: int = 1024 * 100):
         """
         topic_name: WebSocketで使用するトピック名
         file_path: PCDファイルのパス
@@ -50,16 +50,16 @@ class BsonSender:
                 return None
             
             # データを直接bsonにシリアライズ
-            bson_data = bson.BSON.encode({
+            bson_data = bson.dumps({
                 'header':{
-                    'filename': self.__topic_name,
+                    'filename': self.__filename,
                     'chunk_index': self.__chunk_index,
                     'fields': ['x', 'y', 'z', 'rgb'],
                     'chunk_size': self.__chunk_size,
                     },
                 'points': chunk_data
             })
-            
+
             # 送信済みデータを削除
             self.__data = self.__data[self.__chunk_size:]
             self.__chunk_index += 1

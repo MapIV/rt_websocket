@@ -14,7 +14,7 @@ let totalPointsController: any
 // add group
 let pointsGroup = new Group();
 let pointCounter = 0;
-const MAX_POINT_GROUPNUM = 49;
+const MAX_POINT_GROUPNUM = 2000;
 
 // init settings
 function init() {
@@ -72,6 +72,8 @@ function createPointCloud(points: number[][]) {
       ((pointsGroup.children[0] as Points).material as Material).dispose();
       pointsGroup.remove(pointsGroup.children[0]);
     }
+    console.log("pointNum: ", pointNum.value)
+    updateCamera()
 }
 
 // update camera
