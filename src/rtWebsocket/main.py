@@ -3,8 +3,8 @@ from asyncio.log import logger
 import os
 import time
 from fastapi import WebSocket, WebSocketDisconnect
-from pointcloud_websocket.connection_manager import ConnectionManager
-from pointcloud_websocket.services.video_sender import VideoSender
+from rtWebsocket.connection_manager import ConnectionManager
+from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 5  # 5秒以上リクエストが来なかったら切断
 
