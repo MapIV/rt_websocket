@@ -4,6 +4,7 @@ import os
 import time
 from fastapi import WebSocket, WebSocketDisconnect
 from rtWebsocket.connection_manager import ConnectionManager
+from rtWebsocket.services.bson_sender import BsonSender
 from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 5  # 5秒以上リクエストが来なかったら切断
@@ -19,7 +20,7 @@ def setup_manager():
     manager = ConnectionManager()
     return manager
 
-async def check_timeout(websocket: WebSocket, last_request_time: dict, manager: ConnectionManager, active_topics: dict):
+async def _check_timeout(websocket: WebSocket, last_request_time: dict, manager: ConnectionManager, active_topics: dict):
     """ 
     一定時間リクエストが来なかったら WebSocket を閉じる
     """
@@ -41,7 +42,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
     last_request_time = {"time": time.time()} 
 
     # タイムアウトチェックのタスクを開始
-    asyncio.create_task(check_timeout(websocket, last_request_time, manager, active_topics))
+    asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
 
     try:
         while True:
@@ -51,16 +52,28 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
             if message["type"] == "subscribe":
                 topic_name = message["topic"]
                 print(f'topic_name: {topic_name}')
+
                 if topic_name not in active_topics:
-                    video_path = os.path.abspath("../src/sample_video/test_video1.mp4")
-                    print(f'video_path: {video_path}')
-                    sender = VideoSender(topic_name, video_path)
+                    if topic_name == "video_stream":
+                        # for testing, we are using a sample video
+                        video_path = os.path.abspath("../src/sample_video/test_video1.mp4")
+                        print(f'video_path: {video_path}')
+                        sender = VideoSender(topic_name, video_path)
+
+                    if topic_name == "pcdfile":
+                        # for testing, we are using a sample pcd file
+                        pcd_path = os.path.abspath("../src/sample_pcd/test_pcd1.pcd")
+                        print(f'pcd_path: {pcd_path}')
+                        sender = BsonSender(topic_name, pcd_path)
+
                     active_topics[topic_name] = sender
                     print(f"Subscribed to {topic_name}")
+
                 print(f'active_topics: {active_topics}')
 
             elif message["type"] == "unsubscribe":
                 topic_name = message["topic"]
+
                 if topic_name in active_topics:
                     active_topics[topic_name].cleanup()
                     del active_topics[topic_name]
@@ -69,6 +82,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                 topic_name = message["topic"]
                 last_request_time["time"] = time.time()
                 print(f'topic_name: {topic_name}')
+
                 if topic_name in active_topics:
                     print(f"topic name in active_topics")
                     sender = active_topics[topic_name]

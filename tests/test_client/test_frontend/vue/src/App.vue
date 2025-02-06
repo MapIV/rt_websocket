@@ -1,24 +1,73 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-const ws = ref<WebSocket | null>(null)
+import PcdViewer from './test/pcdViewer.vue';
+import { BSON } from 'bson';
+const ws_map = ref<{ [key: string]: WebSocket | null }>({ video_stream: null, pcdfile: null });
+const viewer = ref<Viewer | null>(null)
 
-function initWebsocket() {
-  ws.value = new WebSocket("ws://localhost:8080/ws");
+interface Viewer {
+  createPointCloud: (points: number[][]) => void;
+}
 
-  ws.value.onopen = () => {
+function initWebsocket(topic: string) {
+  if (ws_map.value[topic]) return; 
+  ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws");
+
+  ws_map.value[topic].onopen = () => {
     console.log("Websocket connected");
-    subscribe();
+    subscribe(topic);
 
     // request first data
-    requestData();
+    requestData(topic);
   };
 
-  ws.value.onmessage = async (event) => {
+  ws_map.value[topic].onmessage = async (event) => {
     try {
-      const arrayBuffer = await event.data.arrayBuffer();
-      console.log(`Received ${arrayBuffer.byteLength} bytes`);
+      if (topic === "video_stream") {
+        await create_video(event, topic);
+      }
+
+      if (topic === "pcdfile") {
+        await create_pcd(event, topic);
+      }
+    }
+    catch (e) {
+      console.error("Error parsing message: " + e);
+    }
+  };
+
+  ws_map.value[topic].onclose = () => {
+    console.log("Websocket closed");
+  };
+
+  ws_map.value[topic].onerror = (error) => {
+    console.error("Websocket error: " + error);
+  };
+}
+
+function subscribe(topic : string) {
+  if (ws_map.value[topic]) {
+      ws_map.value[topic].send(JSON.stringify({
+          type: "subscribe",
+          topic: topic,
+      }));
+    }
+}
+
+function requestData(topic: string) {
+  if (ws_map.value[topic]) {
+    ws_map.value[topic].send(JSON.stringify({
+        type: "request_data",
+        topic: topic,
+    }));
+  }
+}
+
+async function create_video (event: { data: { arrayBuffer: () => any; }; },topic: string) {
+  const arrayBuffer = await event.data.arrayBuffer();
+      // console.log(`Received ${arrayBuffer.byteLength} bytes`);
       const uint8Array = new Uint8Array(arrayBuffer);
-      console.log(`Received ${uint8Array.length} bytes`);
+      // console.log(`Received ${uint8Array.length} bytes`);
       // header(width, height, pixel_size）
       const headerArray = new Uint32Array(arrayBuffer.slice(0, 12)); // 3 * 4 bytes
       const width = headerArray[0];
@@ -52,48 +101,40 @@ function initWebsocket() {
               console.error("Error: Canvas element not found.");
             }
         }
-      requestData();
-    }
-    catch (e) {
-      console.error("Error parsing message: " + e);
-    }
-  };
-
-  ws.value.onclose = () => {
-    console.log("Websocket closed");
-  };
-
-  ws.value.onerror = (error) => {
-    console.error("Websocket error: " + error);
-  };
+      requestData(topic);
 }
 
-function subscribe() {
-  if (ws.value) {
-      ws.value.send(JSON.stringify({
-          type: "subscribe",
-          topic: "video_stream"
-      }));
-    }
-}
+async function create_pcd (event: any, topic: string) {
+  const data = BSON.deserialize(await event.data)
 
-function requestData() {
-  if (ws.value) {
-    ws.value.send(JSON.stringify({
-        type: "request_data",
-        topic: "video_stream"
-    }));
+  if (Array.isArray(data.points) && data.points.length  !=  0 && viewer.value) {
+    viewer.value.createPointCloud(data.points);
   }
+  requestData(topic);
 }
 
 onMounted(() => {
-  initWebsocket();
+  // initWebsocket("video_stream");
+  initWebsocket("pcdfile");
+});
+
+onUnmounted(() => {
+  if (ws_map.value) {
+    for (const key in ws_map.value) {
+      if (ws_map.value[key]) {
+        ws_map.value[key]?.close();
+      }
+    }
+  }
 });
 </script>
 
 <template>
   <h1>test</h1>
-  <canvas id="videoCanvas" width="1280" height="1000"></canvas>
+  <canvas id="videoCanvas" width="1000" height="100"></canvas>
+  <h1>test2</h1>
+  <PcdViewer ref="viewer"/>
+
 </template>
 
 
