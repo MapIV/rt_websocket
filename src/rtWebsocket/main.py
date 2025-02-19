@@ -84,16 +84,12 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                 print(f'topic_name: {topic_name}')
 
                 if topic_name in active_topics:
-                    # print(f"topic name in active_topics")
                     sender = active_topics[topic_name]
-                    # print(f"sender: {sender}")
                     data = sender.get_data()
                     print(f"data: {type(data)}")
                     if data:
                         await manager.send_bytes(data, websocket)
                         print(f"Sent data to {topic_name}")
-
-            # print(f' finish message: {message}')
 
     except WebSocketDisconnect:
         logger.info("Client disconnected")

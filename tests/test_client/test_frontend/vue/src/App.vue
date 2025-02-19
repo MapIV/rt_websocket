@@ -67,26 +67,20 @@ function requestData(topic: string) {
 
 async function create_video (event: MessageEvent<any>,topic: string) {
   const arrayBuffer = event.data
-  console.log(arrayBuffer)
 
   if (arrayBuffer.byteLength === 0) {
     console.log("Empty or invalid frame received, skipping update.");
     return;
   }
-  console.log(arrayBuffer.slice(0, 3))
   const header = await arrayBuffer.slice(0,3).arrayBuffer()
   const formatBytes = new Uint8Array(header);
-  console.log(formatBytes)
   const format = new TextDecoder("utf-8").decode(formatBytes); // "png" または "jpg"
-  console.log(`Received format: ${format}`)
 
   const mimeType = format === "png" ? "image/png" : "image/jpeg";
-  console.log(`Received mime type: ${mimeType}`)
   const frameBytes = arrayBuffer.slice(3);
 
   const blob = new Blob([frameBytes], { type: mimeType });
   imgBlobUrl.value = URL.createObjectURL(blob);
-  console.log("Received Image");
   requestData(topic);
 }
 

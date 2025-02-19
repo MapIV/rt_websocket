@@ -5,8 +5,6 @@ class VideoSender:
     def __init__(self, topic_name,video_path,format="png"):
         self.__topic_name =  topic_name
         self.__cap = cv2.VideoCapture(video_path)
-        self.__height = int(self.__cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.__width = int(self.__cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.__format = format # "jpg" or "png"
 
     def get_data(self):
@@ -34,11 +32,8 @@ class VideoSender:
             
             # フレームを uint8 → bytes に変換
             frame_bytes = encoded_frame.tobytes()
-            print(f"frame_bytes: {type(frame_bytes)}")  
             
             header = struct.pack("3s", self.__format.encode("utf-8"))
-            print(f"header: {header}")
-            print(f"header: {type(header)}")
             return header + frame_bytes
         
         except Exception as e:
