@@ -6,6 +6,14 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    target: 'esnext',  // Ensure top-level await is supported
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext', // Also enable for dependencies
+    },
+  },
   plugins: [
     vue(),
     vueDevTools(),

@@ -1,10 +1,7 @@
-import os
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-from pointcloud_websocket.middleware.timeout import TimeoutMiddleware
-from pointcloud_websocket.main import setup_manager, websocket_endpoint
+from rtWebsocket.middleware.timeout import TimeoutMiddleware
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+import rtWebsocket
 
 app = FastAPI()
 
@@ -17,8 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(TimeoutMiddleware, timeout=10)
-# WebSocket サーバーをセットアップ
-ws_manager = setup_manager()
+ws_manager = rtWebsocket.setup_manager()
 
 @app.get("/")
 async def read_root():
@@ -28,7 +24,7 @@ async def read_root():
 async def test_websocket(websocket: WebSocket):
     try:
         print("test_websocket")
-        await websocket_endpoint(websocket, ws_manager)
+        await rtWebsocket.websocket_endpoint(websocket, ws_manager)
     except Exception as e:
         print(f"test_websocket error {e}")
 
