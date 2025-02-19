@@ -4,6 +4,7 @@ import PcdViewer from './test/pcdViewer.vue';
 import { BSON } from 'bson';
 const ws_map = ref<{ [key: string]: WebSocket | null }>({ video_stream: null, pcdfile: null });
 const viewer = ref<Viewer | null>(null)
+const imgBlobUrl = ref<string | null>(null);
 
 interface Viewer {
   createPointCloud: (points: number[][]) => void;
@@ -101,6 +102,24 @@ async function create_video (event: { data: { arrayBuffer: () => any; }; },topic
               console.error("Error: Canvas element not found.");
             }
         }
+      if (pixelSize == 32) {
+        // RGBA
+        const canvas = document.getElementById("videoCanvas") as HTMLCanvasElement;
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            const imageData = new ImageData(new Uint8ClampedArray(imageDataArray), width, height);
+            ctx.putImageData(imageData, 0, 0);
+          } else {
+            console.error("Error: Unable to get 2D context from canvas.");
+          }
+        } else {
+          console.error("Error: Canvas element not found.");
+        }
+      }
+      const blob = new Blob([imageDataArray]);
+      imgBlobUrl.value = URL.createObjectURL(blob);
+      console.log("Received Image");
       requestData(topic);
 }
 
@@ -117,8 +136,8 @@ async function create_pcd (event: MessageEvent, topic: string) {
 }
 
 onMounted(() => {
-  // initWebsocket("video_stream");
-  initWebsocket("pcdfile");
+  initWebsocket("video_stream");
+  // initWebsocket("pcdfile");
 });
 
 onUnmounted(() => {
@@ -135,6 +154,7 @@ onUnmounted(() => {
 <template>
   <h1>test</h1>
   <canvas id="videoCanvas" width="1000" height="100"></canvas>
+  <!-- <v-img :src="imgBlobUrl" v-if="imgBlobUrl" /> -->
   <h1>test2</h1>
   <PcdViewer ref="viewer"/>
 

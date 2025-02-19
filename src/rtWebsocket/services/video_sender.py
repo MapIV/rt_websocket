@@ -23,12 +23,13 @@ class VideoSender:
                 self.__cap.release()
                 return None  # 動画の終端なら None を返す
 
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2RGBA)
             # フレームを NumPy の ndarray → bytes に変換
             frame_bytes = frame.flatten().tobytes()
             print(f"frame_bytes: {type(frame_bytes)}")  
 
             # headerのbyteの構築 (width, height, pixel_size, image_data)
-            header = struct.pack("iii", self.__width, self.__height, 24)  # 24-bit RGB
+            header = struct.pack("iii", self.__width, self.__height, 32)  # 24-bit RGB, 32-bit RGBA
             print(f"header: {type(header)}")
 
             return header + frame_bytes
