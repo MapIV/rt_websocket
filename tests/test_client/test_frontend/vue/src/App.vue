@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import PcdViewer from './test/pcdViewer.vue';
 import { BSON } from 'bson';
+import { array } from 'three/tsl';
 const ws_map = ref<{ [key: string]: WebSocket | null }>({ video_stream: null, pcdfile: null });
 const viewer = ref<Viewer | null>(null)
 const imgBlobUrl = ref<string | null>(null);
@@ -64,63 +65,29 @@ function requestData(topic: string) {
   }
 }
 
-async function create_video (event: { data: { arrayBuffer: () => any; }; },topic: string) {
-  const arrayBuffer = await event.data.arrayBuffer();
-      // console.log(`Received ${arrayBuffer.byteLength} bytes`);
-      const uint8Array = new Uint8Array(arrayBuffer);
-      // console.log(`Received ${uint8Array.length} bytes`);
-      // header(width, height, pixel_size）
-      const headerArray = new Uint32Array(arrayBuffer.slice(0, 12)); // 3 * 4 bytes
-      const width = headerArray[0];
-      const height = headerArray[1];
-      const pixelSize = headerArray[2];
-      console.log(`Received Frame - Width: ${width}, Height: ${height}, PixelSize: ${pixelSize}`);
+async function create_video (event: MessageEvent<any>,topic: string) {
+  const arrayBuffer = event.data
+  console.log(arrayBuffer)
 
-      // image data
-      const imageDataArray  = uint8Array.slice(12);
-      if (pixelSize === 24) {
-            // RGB → RGBA に変換
-            const rgbaArray = new Uint8ClampedArray(width * height * 4);
-            for (let i = 0, j = 0; i < imageDataArray.length; i += 3, j += 4) {
-                rgbaArray[j] = imageDataArray[i];     // R
-                rgbaArray[j + 1] = imageDataArray[i + 1]; // G
-                rgbaArray[j + 2] = imageDataArray[i + 2]; // B
-                rgbaArray[j + 3] = 255; // A (不透明)
-            }
+  if (arrayBuffer.byteLength === 0) {
+    console.log("Empty or invalid frame received, skipping update.");
+    return;
+  }
+  console.log(arrayBuffer.slice(0, 3))
+  const header = await arrayBuffer.slice(0,3).arrayBuffer()
+  const formatBytes = new Uint8Array(header);
+  console.log(formatBytes)
+  const format = new TextDecoder("utf-8").decode(formatBytes); // "png" または "jpg"
+  console.log(`Received format: ${format}`)
 
-            // Canvas に描画
-            const canvas = document.getElementById("videoCanvas") as HTMLCanvasElement;
-            if (canvas) {
-                const ctx = canvas.getContext("2d");
-                if (ctx) {
-                  const imageData = new ImageData(rgbaArray, width, height);
-                  ctx.putImageData(imageData, 0, 0);
-                } else {
-                  console.error("Error: Unable to get 2D context from canvas.");
-                }
-            } else {
-              console.error("Error: Canvas element not found.");
-            }
-        }
-      if (pixelSize == 32) {
-        // RGBA
-        const canvas = document.getElementById("videoCanvas") as HTMLCanvasElement;
-        if (canvas) {
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            const imageData = new ImageData(new Uint8ClampedArray(imageDataArray), width, height);
-            ctx.putImageData(imageData, 0, 0);
-          } else {
-            console.error("Error: Unable to get 2D context from canvas.");
-          }
-        } else {
-          console.error("Error: Canvas element not found.");
-        }
-      }
-      const blob = new Blob([imageDataArray]);
-      imgBlobUrl.value = URL.createObjectURL(blob);
-      console.log("Received Image");
-      requestData(topic);
+  const mimeType = format === "png" ? "image/png" : "image/jpeg";
+  console.log(`Received mime type: ${mimeType}`)
+  const frameBytes = arrayBuffer.slice(3);
+
+  const blob = new Blob([frameBytes], { type: mimeType });
+  imgBlobUrl.value = URL.createObjectURL(blob);
+  console.log("Received Image");
+  requestData(topic);
 }
 
 async function create_pcd (event: MessageEvent, topic: string) {
@@ -153,10 +120,10 @@ onUnmounted(() => {
 
 <template>
   <h1>test</h1>
-  <canvas id="videoCanvas" width="1000" height="100"></canvas>
-  <!-- <v-img :src="imgBlobUrl" v-if="imgBlobUrl" /> -->
+  <!-- <canvas id="videoCanvas" width="1000" height="100"></canvas> -->
+  <v-img :src="imgBlobUrl" v-if="imgBlobUrl" width="1000"/>
   <h1>test2</h1>
-  <PcdViewer ref="viewer"/>
+  <!-- <PcdViewer ref="viewer"/> -->
 
 </template>
 
