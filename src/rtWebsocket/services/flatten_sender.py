@@ -13,6 +13,7 @@ class FlattenSender:
         """
         self.__topic_name =  topic_name 
         self.__chunk_size = chunk_size  
+        self.__field_data = []
         self.__data = self._read_pcd_file(file_path)
         self.__filename = file_path.split("/")[-1]
         self.__chunk_index = 0 
@@ -24,6 +25,7 @@ class FlattenSender:
         try: 
             pc: PointCloud = PointCloud.from_path(file_path)
             array: np.ndarray = pc.numpy()
+            self.__field_data = list(pc.fields)[3:] 
 
             # NaNを含むポイントを除去
             mask = ~np.isnan(array[:, :4]).any(axis=1)
@@ -46,20 +48,38 @@ class FlattenSender:
                 return None
 
             chunk_data = self.__data[:self.__chunk_size]
+            print(f"chunk_data: {chunk_data.shape}")
 
             if len(chunk_data) == 0:
                 print("All data has been sent.")
                 return None
             print(f"before flatten and tobyte time: {time.time()}")
-            # points_bytes = chunk_data[:, :3].astype(np.float32).tobytes()
-            points_bytes = chunk_data.flatten().tobytes()
+            points_bytes = chunk_data[:, :3].flatten().tobytes()
+            field_bytes = chunk_data[:, 3:].flatten().tobytes() if chunk_data.shape[1] > 3 else b''
             print(f"after flatten  and tobyte: {time.time()}")
             
+            header = {
+                'filename': self.__filename,
+                'chunk_index': self.__chunk_index,
+                'chunk_size': self.__chunk_size,
+                'fields': self.__field_data,
+                'points_length': len(points_bytes),
+                'field_length': len(field_bytes)
+            }
+
+            # Encode the header as JSON and then to bytes
+            header_bytes = json.dumps(header).encode('utf-8')
+            
+            # Create a 4-byte length prefix for the header
+            header_len = len(header_bytes).to_bytes(4, byteorder='little')
+            
+            # Combine everything into a single byte string
+            send_data = header_len + header_bytes + points_bytes + field_bytes
          
-            # 送信済みデータを削除
+            # delete sent data
             self.__data = self.__data[self.__chunk_size:]
             self.__chunk_index += 1
-            return points_bytes
+            return send_data 
         
         except Exception as e:
             print(f"get_data error {e}")
@@ -68,3 +88,4 @@ class FlattenSender:
     def cleanup(self):
         self.__data = []
         self.__chunk_index = 0
+        self.__field_data = ['x', 'y', 'z',]

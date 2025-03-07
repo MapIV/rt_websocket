@@ -8,7 +8,7 @@ const viewer = ref<Viewer | null>(null)
 const imgBlobUrl = ref<string | null>(null);
 
 interface Viewer {
-  createPointCloud: (points: Float32Array) => void;
+  createPointCloud: (points: Float32Array, intensity?: Float32Array) => void;
 }
 
 function initWebsocket(topic: string,path: string) {
@@ -102,11 +102,42 @@ async function create_pcd (event: MessageEvent, topic: string,path: string) {
   console.log("Received PCD file time: ", new Date().getTime());
   const arrayBuffer = await event.data.arrayBuffer();
 
-  const positions = new Float32Array(arrayBuffer);
-  // console.log("event.data : ", arrayBuffer);
-  // console.log("positions : ", positions);
+  // read header length
+  const headerLengthbyte = arrayBuffer.slice(0,4);
+  const headerLengthInt = new DataView(headerLengthbyte).getInt32(0, true);
+  console.log("headerLength : ", headerLengthInt);
+
+  // read header
+  const headerbytes = arrayBuffer.slice(4,4+headerLengthInt);
+  const headerText = new TextDecoder("utf-8").decode(headerbytes);
+  const header = JSON.parse(headerText);
+  console.log("header : ", header);
+
+  // Get points and field data lengths from header
+  const pointsLength = header.points_length;
+  const fieldLength = header.field_length;
+
+  // Extract points data
+  const pointsStart = 4 + headerLengthInt;
+  const pointsBuffer = arrayBuffer.slice(pointsStart, pointsStart + pointsLength);
+  const positions = new Float32Array(pointsBuffer);
+  
+  // Extract field data if available
+  let fieldData = new Float32Array(0);
+  if (fieldLength > 0) {
+    const fieldStart = pointsStart + pointsLength;
+    const fieldBuffer = arrayBuffer.slice(fieldStart, fieldStart + fieldLength);
+    fieldData = new Float32Array(fieldBuffer);
+  }
+  console.log("fieldData.length : ", fieldData.length);
+  console.log("points.length : ", positions.length);
+
   if (viewer.value) {
+    if (fieldData.length > 0) {
+      viewer.value.createPointCloud(positions, fieldData);
+    } else {
     viewer.value.createPointCloud(positions);
+    }
   }
   console.log("finish create pcd time : ", new Date().getTime());
   requestData(topic,path);
