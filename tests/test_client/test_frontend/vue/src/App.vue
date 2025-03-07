@@ -11,26 +11,26 @@ interface Viewer {
   createPointCloud: (points: number[][]) => void;
 }
 
-function initWebsocket(topic: string) {
+function initWebsocket(topic: string,path: string) {
   if (ws_map.value[topic]) return; 
   ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws");
 
   ws_map.value[topic].onopen = () => {
     console.log("Websocket connected");
-    subscribe(topic);
+    subscribe(topic,path);
 
     // request first data
-    requestData(topic);
+    requestData(topic,path);
   };
 
   ws_map.value[topic].onmessage = async (event) => {
     try {
       if (topic === "video_stream") {
-        await create_video(event, topic);
+        await create_video(event, topic,path);
       }
 
       if (topic === "pcdfile") {
-        await create_pcd(event, topic);
+        await create_pcd(event, topic,path);
       }
     }
     catch (e) {
@@ -47,25 +47,27 @@ function initWebsocket(topic: string) {
   };
 }
 
-function subscribe(topic : string) {
+function subscribe(topic : string,path: string) {
   if (ws_map.value[topic]) {
       ws_map.value[topic].send(JSON.stringify({
           type: "subscribe",
           topic: topic,
+          path: path,
       }));
     }
 }
 
-function requestData(topic: string) {
+function requestData(topic: string,path: string) {
   if (ws_map.value[topic]) {
     ws_map.value[topic].send(JSON.stringify({
         type: "request_data",
         topic: topic,
+        path: path,
     }));
   }
 }
 
-async function create_video (event: MessageEvent<any>,topic: string) {
+async function create_video (event: MessageEvent<any>,topic: string,path: string) {
   const arrayBuffer = event.data
 
   if (arrayBuffer.byteLength === 0) {
@@ -81,24 +83,24 @@ async function create_video (event: MessageEvent<any>,topic: string) {
 
   const blob = new Blob([frameBytes], { type: mimeType });
   imgBlobUrl.value = URL.createObjectURL(blob);
-  requestData(topic);
+  requestData(topic,path);
 }
 
-async function create_pcd (event: MessageEvent, topic: string) {
+async function create_pcd (event: MessageEvent, topic: string,path: string) {
+  console.log("Received PCD file time: ", new Date().getTime());
   const arrayBuffer = await event.data.arrayBuffer();
   const uint8Array = new Uint8Array(arrayBuffer);
-  console.log("Received PCD file");
   const data = BSON.deserialize(uint8Array)
-
   if (Array.isArray(data.points) && data.points.length  !=  0 && viewer.value) {
     viewer.value.createPointCloud(data.points);
   }
-  requestData(topic);
+  console.log("finish create pcd time : ", new Date().getTime());
+  requestData(topic,path);
 }
 
 onMounted(() => {
-  initWebsocket("video_stream");
-  // initWebsocket("pcdfile");
+  // initWebsocket("video_stream","../src/sample_video/test_video1.mp4");
+  initWebsocket("pcdfile","../src/sample_pcdfile/map-18400_-93500_converted_converted.pcd");
 });
 
 onUnmounted(() => {
@@ -114,10 +116,10 @@ onUnmounted(() => {
 
 <template>
   <h1>test</h1>
-  <!-- <canvas id="videoCanvas" width="1000" height="100"></canvas> -->
+  <canvas id="videoCanvas" width="1000" height="100"></canvas>
   <v-img :src="imgBlobUrl" v-if="imgBlobUrl" width="1000"/>
   <h1>test2</h1>
-  <!-- <PcdViewer ref="viewer"/> -->
+  <PcdViewer ref="viewer"/>
 
 </template>
 

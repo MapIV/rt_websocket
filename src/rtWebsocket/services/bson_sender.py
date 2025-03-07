@@ -1,3 +1,4 @@
+import time
 import bson
 import numpy as np
 from pypcd4 import PointCloud
@@ -48,7 +49,7 @@ class BsonSender:
             if len(chunk_data) == 0:
                 print("All data has been sent.")
                 return None
-            
+            print(f"before bson dump time: {time.time()}")
             # データを直接bsonにシリアライズ
             bson_data = bson.dumps({
                 'header':{
@@ -59,7 +60,7 @@ class BsonSender:
                     },
                 'points': chunk_data
             })
-
+            print(f"after bson dump time: {time.time()}")
             # 送信済みデータを削除
             self.__data = self.__data[self.__chunk_size:]
             self.__chunk_index += 1

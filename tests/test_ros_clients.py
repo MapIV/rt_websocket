@@ -7,11 +7,19 @@ async def websocket_client():
     async with websockets.connect(uri) as websocket:
         print("Connected to WebSocket server.")
 
-        # サブスクライブメッセージを送信
+        # サブスクライブメッセージを送信 (video)
         subscribe_message = json.dumps({
             "type": "subscribe",
-            "topic": "/scan/downsampled"
+            "topic": "video_stream",
+            "path" : "../src/sample_video/test_video1.mp4",
         })
+
+        # サブスクライブメッセージを送信 (pcd)
+        # subscribe_message = json.dumps({
+        #     "type": "subscribe",
+        #     "topic": "pcdfile",
+        #     "path" : "../src/sample_pcdfile/map-18400_-93500_converted_converted.pcd",
+        # })
         await websocket.send(subscribe_message)
         print(f"Sent: {subscribe_message}")
 
