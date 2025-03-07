@@ -75,19 +75,24 @@ function animate() {
 //     console.log("pointNum: ", pointNum.value)
 //     updateCamera()
 // }
-function createPointCloud(points:Float32Array) {
+function createPointCloud(pointsWithIntensity:Float32Array) {
     const geometry = new BufferGeometry()
     // console.log("points: ", points)
-    let hasNaN = false;
-    for (let i = 0; i < points.length; i++) {
-    if (isNaN(points[i])) {
-      console.warn(`Found NaN at index ${i}`);
-      hasNaN = true;
-      break;
+    // Each point now has 4 values (x, y, z, intensity)
+    // We need to extract just the x, y, z values for the position buffer
+    const pointCount = pointsWithIntensity.length / 4;
+    const positions = new Float32Array(pointCount * 3);
+    const intensities = new Float32Array(pointCount);
+    
+    // Extract positions and intensities
+    for (let i = 0; i < pointCount; i++) {
+        positions[i * 3]     = pointsWithIntensity[i * 4];     // x
+        positions[i * 3 + 1] = pointsWithIntensity[i * 4 + 1]; // y
+        positions[i * 3 + 2] = pointsWithIntensity[i * 4 + 2]; // z
+        intensities[i]       = pointsWithIntensity[i * 4 + 3]; // intensity
     }
-  }
     // const positions = new Float32Array(points.flatMap((p) => p.slice(0, 3)))
-    geometry.setAttribute('position', new BufferAttribute(points, 3))
+    geometry.setAttribute('position', new BufferAttribute(positions, 3))
 
     const material = new MeshBasicMaterial({ color: 0xff0000 })
 
@@ -95,7 +100,7 @@ function createPointCloud(points:Float32Array) {
     pointsGroup.add(pointCloud);
 
     // add point
-    pointNum.value += points.length; 
+    pointNum.value += positions.length / 3; 
 
     // Remove oldest points if exceeding maximum
     if (pointsGroup.children.length > MAX_POINT_GROUPNUM ) {

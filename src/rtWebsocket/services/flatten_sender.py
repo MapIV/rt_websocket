@@ -51,7 +51,8 @@ class FlattenSender:
                 print("All data has been sent.")
                 return None
             print(f"before flatten and tobyte time: {time.time()}")
-            points_bytes = chunk_data[:, :3].astype(np.float32).tobytes()
+            # points_bytes = chunk_data[:, :3].astype(np.float32).tobytes()
+            points_bytes = chunk_data.flatten().tobytes()
             print(f"after flatten  and tobyte: {time.time()}")
             
          
