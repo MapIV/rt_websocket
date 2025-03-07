@@ -5,6 +5,7 @@ import time
 from fastapi import WebSocket, WebSocketDisconnect
 from rtWebsocket.connection_manager import ConnectionManager
 from rtWebsocket.services.bson_sender import BsonSender
+from rtWebsocket.services.flatten_sender import FlattenSender
 from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 5  # 5秒以上リクエストが来なかったら切断
@@ -69,7 +70,8 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         # for testing, we are using a sample pcd file
                         pcd_path = os.path.abspath(path)
                         print(f'pcd_path: {pcd_path}')
-                        sender = BsonSender(topic_name, pcd_path)
+                        # sender = BsonSender(topic_name, pcd_path)
+                        sender = FlattenSender(topic_name, pcd_path)
 
                     active_topics[topic_name][path] = sender
                     print(f"Subscribed to {topic_name}")

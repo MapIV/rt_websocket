@@ -8,7 +8,7 @@ const viewer = ref<Viewer | null>(null)
 const imgBlobUrl = ref<string | null>(null);
 
 interface Viewer {
-  createPointCloud: (points: number[][]) => void;
+  createPointCloud: (points: Float32Array) => void;
 }
 
 function initWebsocket(topic: string,path: string) {
@@ -86,13 +86,27 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
   requestData(topic,path);
 }
 
+// async function create_pcd (event: MessageEvent, topic: string,path: string) {
+//   console.log("Received PCD file time: ", new Date().getTime());
+//   const arrayBuffer = await event.data.arrayBuffer();
+//   const uint8Array = new Uint8Array(arrayBuffer);
+//   const data = BSON.deserialize(uint8Array)
+//   if (Array.isArray(data.points) && data.points.length  !=  0 && viewer.value) {
+//     viewer.value.createPointCloud(data.points);
+//   }
+//   console.log("finish create pcd time : ", new Date().getTime());
+//   requestData(topic,path);
+// }
+
 async function create_pcd (event: MessageEvent, topic: string,path: string) {
   console.log("Received PCD file time: ", new Date().getTime());
   const arrayBuffer = await event.data.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  const data = BSON.deserialize(uint8Array)
-  if (Array.isArray(data.points) && data.points.length  !=  0 && viewer.value) {
-    viewer.value.createPointCloud(data.points);
+
+  const positions = new Float32Array(arrayBuffer);
+  // console.log("event.data : ", arrayBuffer);
+  // console.log("positions : ", positions);
+  if (viewer.value) {
+    viewer.value.createPointCloud(positions);
   }
   console.log("finish create pcd time : ", new Date().getTime());
   requestData(topic,path);

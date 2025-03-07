@@ -51,10 +51,43 @@ function animate() {
 }
 
 // create point cloud
-function createPointCloud(points: number[][]) {
+// function createPointCloud(points: number[][]) {
+//     const geometry = new BufferGeometry()
+//     const positions = new Float32Array(points.flatMap((p) => p.slice(0, 3)))
+//     geometry.setAttribute('position', new BufferAttribute(positions, 3))
+
+//     const material = new MeshBasicMaterial({ color: 0xff0000 })
+
+//     const pointCloud = new Points(geometry, material)
+//     pointsGroup.add(pointCloud);
+
+//     // add point
+//     pointNum.value += points.length; 
+
+//     // Remove oldest points if exceeding maximum
+//     if (pointsGroup.children.length > MAX_POINT_GROUPNUM ) {
+//       pointNum.value -= pointsGroup.children[0].userData.pointCount;
+//       (pointsGroup.children[0] as Points).geometry.deleteAttribute('position');
+//       (pointsGroup.children[0] as Points).geometry.dispose();
+//       ((pointsGroup.children[0] as Points).material as Material).dispose();
+//       pointsGroup.remove(pointsGroup.children[0]);
+//     }
+//     console.log("pointNum: ", pointNum.value)
+//     updateCamera()
+// }
+function createPointCloud(points:Float32Array) {
     const geometry = new BufferGeometry()
-    const positions = new Float32Array(points.flatMap((p) => p.slice(0, 3)))
-    geometry.setAttribute('position', new BufferAttribute(positions, 3))
+    // console.log("points: ", points)
+    let hasNaN = false;
+    for (let i = 0; i < points.length; i++) {
+    if (isNaN(points[i])) {
+      console.warn(`Found NaN at index ${i}`);
+      hasNaN = true;
+      break;
+    }
+  }
+    // const positions = new Float32Array(points.flatMap((p) => p.slice(0, 3)))
+    geometry.setAttribute('position', new BufferAttribute(points, 3))
 
     const material = new MeshBasicMaterial({ color: 0xff0000 })
 
