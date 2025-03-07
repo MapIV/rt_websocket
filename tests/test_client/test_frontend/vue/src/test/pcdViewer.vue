@@ -219,17 +219,20 @@ function animate() {
 //     console.log("pointNum: ", pointNum.value)
 //     updateCamera()
 // }
-function createPointCloud(points:Float32Array, intensity?: Float32Array) {
+function createPointCloud(points:Float32Array, fields:string[], fieldData?: Float32Array) {
     const geometry = new BufferGeometry()
 
     geometry.setAttribute('position', new BufferAttribute(points, 3))
     let intensityRange = [0, 0]
-    if (intensity) {
-      intensityRange[0] = Math.min(...intensity)
-      intensityRange[1] = Math.max(...intensity)
-      geometry.setAttribute('intensity', new BufferAttribute(intensity, 1))
+
+    if (fields.includes('intensity')) {
+      if (fieldData) {
+        intensityRange[0] = Math.min(...fieldData)
+      intensityRange[1] = Math.max(...fieldData)
+      geometry.setAttribute('intensity', new BufferAttribute(fieldData, 1))
+      }
     }
-    console.log("intensityRange: ", intensityRange)
+
     const material = new ShaderMaterial({
     uniforms: {
       minZ: { value: -Infinity }, // for test
@@ -238,7 +241,7 @@ function createPointCloud(points:Float32Array, intensity?: Float32Array) {
       colorMapMode: { value: 0}, // 0: TURBO ,1: INFERNO, 2: VIRIDIS, 3: PLASMA, 4: HSL
       colorFix: { value: new Color(0xffffff) },
       pointSize: { value: 0.1 },
-      opacity: { value: 0.5 },
+      opacity: { value: 0.9 },
       minIntensity: { value: intensityRange[0] },
       rangeIntensity: { value: intensityRange[1] - intensityRange[0] },
     },

@@ -8,7 +8,7 @@ const viewer = ref<Viewer | null>(null)
 const imgBlobUrl = ref<string | null>(null);
 
 interface Viewer {
-  createPointCloud: (points: Float32Array, intensity?: Float32Array) => void;
+  createPointCloud: (points: Float32Array, fields:string[], fieldData?: Float32Array) => void;
 }
 
 function initWebsocket(topic: string,path: string) {
@@ -116,6 +116,7 @@ async function create_pcd (event: MessageEvent, topic: string,path: string) {
   // Get points and field data lengths from header
   const pointsLength = header.points_length;
   const fieldLength = header.field_length;
+  const fields = header.fields;
 
   // Extract points data
   const pointsStart = 4 + headerLengthInt;
@@ -131,12 +132,13 @@ async function create_pcd (event: MessageEvent, topic: string,path: string) {
   }
   console.log("fieldData.length : ", fieldData.length);
   console.log("points.length : ", positions.length);
+  console.log("fields : ", fields );
 
   if (viewer.value) {
     if (fieldData.length > 0) {
-      viewer.value.createPointCloud(positions, fieldData);
+      viewer.value.createPointCloud(positions, fields,fieldData,);
     } else {
-    viewer.value.createPointCloud(positions);
+    viewer.value.createPointCloud(positions, fields);
     }
   }
   console.log("finish create pcd time : ", new Date().getTime());
