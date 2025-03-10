@@ -146,8 +146,8 @@ async function create_pcd (event: MessageEvent, topic: string,path: string) {
 }
 
 onMounted(() => {
-  // initWebsocket("video_stream","../src/sample_video/test_video1.mp4");
-  initWebsocket("pcdfile","../src/sample_pcdfile/map-18400_-93500_converted_converted.pcd");
+  initWebsocket("video_stream","test/sample_video/test_video1.mp4"); // docker container内のパス
+  initWebsocket("pcdfile","test/sample_pcdfile/map-18400_-93500_converted_converted.pcd"); // docker container内のパス
 });
 
 onUnmounted(() => {
