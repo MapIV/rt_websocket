@@ -6,6 +6,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from rtWebsocket.connection_manager import ConnectionManager
 from rtWebsocket.services.bson_sender import BsonSender
 from rtWebsocket.services.flatten_sender import FlattenSender
+from rtWebsocket.services.video_h264_sender import Videoh264Sender
 from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 5  # 5秒以上リクエストが来なかったら切断
@@ -72,6 +73,11 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         print(f'pcd_path: {pcd_path}')
                         # sender = BsonSender(topic_name, pcd_path)
                         sender = FlattenSender(topic_name, pcd_path)
+
+                    if topic_name == "video_h264_stream":
+                        video_path = os.path.abspath(path)
+                        print(f'video_path: {video_path}')
+                        sender = Videoh264Sender(topic_name, video_path)
 
                     active_topics[topic_name][path] = sender
                     print(f"Subscribed to {topic_name}")
