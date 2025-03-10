@@ -19,5 +19,6 @@ setup(
         "pypcd4",
         "bson"
     ],
+    include_package_data=True,
     license='MIT'  # ライセンス
 )
