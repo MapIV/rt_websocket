@@ -1,3 +1,4 @@
+from fastapi.responses import StreamingResponse
 from rtWebsocket.middleware.timeout import TimeoutMiddleware
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,13 @@ async def test_websocket(websocket: WebSocket):
         await rtWebsocket.websocket_endpoint(websocket, ws_manager)
     except Exception as e:
         print(f"test_websocket error {e}")
+
+@app.get("/video")
+async def video_feed():
+    video_sender = rtWebsocket.VideoV9Sender("video_stream", "../src/sample_video/test_video1.mp4")
+    return StreamingResponse(video_sender.get_data(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
 
 if __name__ == "__main__":
     
