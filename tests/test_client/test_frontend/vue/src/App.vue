@@ -39,6 +39,9 @@ function initWebsocket(topic: string,path: string) {
       if (topic === "video_h264_stream") {
         await create_video_vp9(event, topic, path);
       }
+      if (topic === "text") {
+        await create_text(event, topic, path);
+      }
     }
     catch (e) {
       console.error("Error parsing message: " + e);
@@ -187,6 +190,14 @@ async function create_video_vp9 (event: MessageEvent, topic: string, path: strin
   requestData(topic, path);
 }
 
+async function create_text (event: MessageEvent, topic: string, path: string) {
+  const json = JSON.parse(event.data);
+  console.log("Received JSON data:", json);
+  console.log("header:", json.header);
+  console.log("data:", json.data);
+  // requestData(topic, path);
+}
+
 function initializeVideoPlayback() {
   // Create a video element if using programmatically
   // Or reference the existing video element from the template
@@ -243,7 +254,8 @@ function initializeVideoPlayback() {
 onMounted(() => {
   // initWebsocket("video_stream","../src/sample_video/test_video1.mp4"); // docker container内のパス
   // initWebsocket("pcdfile","../src/sample_pcdfile/map-18400_-93500_converted_converted.pcd"); // docker container内のパス
-  initWebsocket("video_h264_stream","../src/sample_video/test_video1.mp4");
+  // initWebsocket("video_h264_stream","../src/sample_video/test_video1.mp4");
+  initWebsocket("text","test_path");
 });
 
 onUnmounted(() => {

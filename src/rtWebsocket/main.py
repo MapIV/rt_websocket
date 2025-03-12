@@ -6,6 +6,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from rtWebsocket.connection_manager import ConnectionManager
 from rtWebsocket.services.bson_sender import BsonSender
 from rtWebsocket.services.flatten_sender import FlattenSender
+from rtWebsocket.services.text_sender import TextSender
 from rtWebsocket.services.video_h264_sender import Videoh264Sender
 from rtWebsocket.services.video_sender import VideoSender
 
@@ -79,6 +80,9 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         print(f'video_path: {video_path}')
                         sender = Videoh264Sender(topic_name, video_path)
 
+                    if topic_name == "text":
+                         sender = TextSender(topic_name)    
+
                     active_topics[topic_name][path] = sender
                     print(f"Subscribed to {topic_name}")
 
@@ -102,7 +106,10 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                     data = sender.get_data()
                     print(f"data: {type(data)}")
                     if data:
-                        await manager.send_bytes(data, websocket)
+                        if topic_name == "text":
+                            await manager.send_text(data, websocket)
+                        else:
+                            await manager.send_bytes(data, websocket)
                         print(f"Sent data to {topic_name}")
 
     except WebSocketDisconnect:
