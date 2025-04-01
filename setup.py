@@ -17,7 +17,8 @@ setup(
         "httpx",
         "opencv-python",
         "pypcd4",
-        "bson"
+        "bson",
+        "ffmpeg-python",
     ],
     include_package_data=True,
     license='MIT'  # ライセンス

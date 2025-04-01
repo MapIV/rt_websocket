@@ -8,3 +8,4 @@ httpx
 opencv-python
 pypcd4
 bson
+ffmpeg-python
