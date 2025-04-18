@@ -27,3 +27,7 @@ class ConnectionManager:
     async def broadcast(self, message: str):
         for connection in self.active_connections:
             await connection.send_text(message)
+
+    async def broadcast_bytes(self, message: bytes):
+        for connection in self.active_connections:
+            await connection.send_bytes(message)    

@@ -111,6 +111,16 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                         else:
                             await manager.send_bytes(data, websocket)
                         print(f"Sent data to {topic_name}")
+            
+            elif message["type"] == "send_data":
+                topic = message["topic"]
+                data_type = message["data_type"]
+                data = message["data"]
+            
+                if data_type == "text":
+                    await manager.broadcast(topic, data)
+                else :
+                    await manager.broadcast_bytes(topic, bytes.fromhex(data))
 
     except WebSocketDisconnect:
         logger.info("Client disconnected")
