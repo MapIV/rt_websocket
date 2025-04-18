@@ -18,6 +18,7 @@ app.add_middleware(
 )
 app.add_middleware(TimeoutMiddleware, timeout=10)
 ws_manager = rtWebsocket.setup_manager()
+camera_manager = rtWebsocket.setup_manager()
 
 async def video_streamer(file_path: str, chunk_size: int = 1024 * 1024):
     """動画をチャンクごとにストリーミングする"""
@@ -38,6 +39,14 @@ async def test_websocket(websocket: WebSocket):
     except Exception as e:
         print(f"test_websocket error {e}")
 
+@app.websocket("/ws/webcamera")
+async def camera_websocket(websocket: WebSocket):
+    try:
+        print("camera_websocket")
+        await rtWebsocket.websocket_endpoint(websocket, camera_manager)
+    except Exception as e:
+        print(f"test_websocket error {e}")
+
 @app.get("/video")
 async def video_feed(video_path: str = Query(..., description="Path to the video file")):
     if not os.path.exists(video_path):
@@ -49,4 +58,4 @@ if __name__ == "__main__":
     
     import uvicorn
     
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8888)
