@@ -32,5 +32,9 @@ class ConnectionManager:
 
     async def broadcast_bytes(self, message: bytes):
         for connection in self.active_connections:
+            try:
             # if connection.client_state == WebSocketState.CONNECTED:
-            await connection.send_bytes(message)    
+                await connection.send_bytes(message)  
+            except Exception as e:
+                logger.error(f"Error sending bytes to {connection}: {e}")
+                self.disconnect(connection)  

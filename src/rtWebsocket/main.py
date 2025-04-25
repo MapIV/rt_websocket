@@ -25,16 +25,34 @@ class MessageReceiver:
     async def _receiver(self):
         try:
             while self.running:
-                print(f"receive time: {time.time()}")
                 if self.websocket.client_state != WebSocketState.CONNECTED:
+                    print("WebSocket disconnected in _received")
                     break
-                message = await self.websocket.receive()
-                async with self.lock:
-                    self.latest_message = message
-        except WebSocketDisconnect:
-            print("WebSocket disconnected")
+                try:
+                    message = await self.websocket.receive()
+                    async with self.lock:
+                        self.latest_message = message
+                except asyncio.CancelledError:
+                    print("Receiver got CancelledError")
+                    self.running = False
+                    raise
+                # except WebSocketDisconnect:
+                #     print("WebSocket disconnected (inner)")
+                #     raise
+                except RuntimeError as e:
+                    print(f"RuntimeError in receiver: {e}")
+                    self.running = False
+                    break
+        except asyncio.CancelledError:
+                print("Receiver got CancelledError")
+                raise
         except Exception as e:
             print(f"Receiver error: {e}")
+        finally:
+            print(">>> finally called <<<")
+            self.running = False
+            print(f"<<finished>>")
+            # await self.close()
 
     async def get_latest(self):
         async with self.lock:
@@ -43,13 +61,28 @@ class MessageReceiver:
             return msg
 
     async def close(self):
+        print("Starting receiver close procedure")
         self.running = False
-        self.receive_task.cancel()
+        
+        if not self.receive_task.done():
+            print("Cancelling receive task")
+            self.receive_task.cancel()
+            
+            try:
+                print("Awaiting cancelled task")
+                await asyncio.wait_for(self.receive_task, timeout=1.0)
+                print("Task await completed")
+            except asyncio.TimeoutError:
+                print("Timeout waiting for task to cancel")
+            except asyncio.CancelledError:
+                print("Receiver task was cancelled as expected")
+            except Exception as e:
+                print(f"Error awaiting cancelled task: {e}")
+        else:
+            print("Receive task was already done")
+            
         print("Receiver closed")
-        try:
-            await self.receive_task
-        except asyncio.CancelledError:
-            pass
+        print("Receiver perfectly closed")
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
@@ -97,15 +130,14 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
         timeout_task = asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
 
     try:
-        while True:
+        while (websocket.client_state == WebSocketState.CONNECTED):
             try:
                 # message = await websocket.receive()
                 message = await receiver.get_latest()
                 if message is None:
                     await asyncio.sleep(0.01)
                     continue
-                # print(f"message received time {time.time()}")
-                # print(f'message: {message}')
+
                 if "text" in message:
                     message = json.loads(message["text"])
                     if message["type"] == "subscribe":
@@ -153,7 +185,6 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                         topic_name = message["topic"]
                         if is_sender:
                             last_request_time["time"] = time.time()
-                        # print(f'topic_name: {topic_name}')
 
                         if topic_name in active_topics:
                             sender = active_topics[topic_name][path]
@@ -194,32 +225,35 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                         new_header_len = len(new_header_bytes).to_bytes(4, byteorder='little')
 
                         new_data = new_header_len + new_header_bytes + body
+                        # print("websocket manager:", manager.active_connections)
+                        # print("is_sender: ", is_sender) 
                         await manager.broadcast_bytes(new_data)
 
                     except Exception as e:
                         print("Failed to parse or broadcast video message:", e)
 
-            except WebSocketDisconnect:
-                print("WebSocket disconnected")
-                print("Running cleanup...")
-                await receiver.close()
-                print("Receiver closed")
-                break  # 必ずループを終了させる
-
             except Exception as inner_e:
                 print(f"Unexpected error inside loop: {inner_e}")
                 break
     
-    except asyncio.CancelledError:
-            print("websocket_endpoint loop cancelled.")
-            raise
     except Exception as e:
         logger.error(f"Error in websocket_endpoint: {str(e)}")
 
-    finally:
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+        if is_sender:
+            timeout_task.cancel()
+
+        print("WebSocket disconnected")
         print("Running cleanup...")
         await receiver.close()
+        manager.disconnect(websocket)
         print("Receiver closed")
+                
+    finally:
+        logger.info("Cleaning up...")
+        await receiver.close()
+        logger.info("Cleaning receiver")
         if is_sender:
             timeout_task.cancel()
             try:

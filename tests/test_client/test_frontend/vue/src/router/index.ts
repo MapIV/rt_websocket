@@ -31,7 +31,15 @@ const router = createRouter({
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import('../test/test_api_handling2.vue'),
+      component: () => import('../test/test_api_handling_sender.vue'),
+    },
+    {
+      path: '/test3',
+      name: 'test3',
+      // route level code-splitting
+      // this generates a separate chunk (About.[hash].js) for this route
+      // which is lazy-loaded when the route is visited.
+      component: () => import('../test/test_api_handling.vue'),
     },
   ],
 })
