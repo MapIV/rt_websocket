@@ -48,11 +48,28 @@ async def camera_websocket(websocket: WebSocket):
     except Exception as e:
         print(f"test_websocket error {e}")
 
+@app.websocket("/ws/webcamera/sender")
+async def camera_websocket_sender(websocket: WebSocket):
+    try:
+        print("camera_websocket")
+        await rtWebsocket.websocket_endpoint(websocket, camera_manager, is_sender=True)
+    except Exception as e:
+        print(f"test_websocket error {e}")
+
+
 @app.websocket("/ws/2/webcamera")
 async def camera_websocket2(websocket: WebSocket):
     try:
         print("camera_websocket")
         await rtWebsocket.websocket_endpoint(websocket, camera2_manager)
+    except Exception as e:
+        print(f"test_websocket error {e}")
+
+@app.websocket("/ws/2/webcamera/sender")
+async def camera_websocket2_sender(websocket: WebSocket):
+    try:
+        print("camera_websocket")
+        await rtWebsocket.websocket_endpoint(websocket, camera2_manager, is_sender=True)
     except Exception as e:
         print(f"test_websocket error {e}")
 
