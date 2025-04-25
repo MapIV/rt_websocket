@@ -51,12 +51,13 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
     last_request_time = {"time": time.time()} 
 
     # タイムアウトチェックのタスクを開始
-    asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
+    timeout_task = asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
 
     try:
         while True:
             try:
                 message = await websocket.receive()
+                print(f"message received time {time.time()}")
                 # print(f'message: {message}')
                 if "text" in message:
                     message = json.loads(message["text"])
@@ -130,6 +131,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
                     last_request_time["time"] = time.time()
                     # print(f"Received raw bytes of size: {len(message['bytes'])}")
                     await manager.broadcast_bytes(message["bytes"])
+                print(f"message handled time {time.time()}")
 
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
@@ -143,11 +145,16 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager):
         logger.error(f"Error in websocket_endpoint: {str(e)}")
 
     finally:
-        for paths in active_topics.values():
-            for sender in paths.values():
-                sender.cleanup()
-        manager.disconnect(websocket)
+        # for paths in active_topics.values():
+        #     for sender in paths.values():
+        #         sender.cleanup()
+        timeout_task.cancel()
         try:
-            await websocket.close()
-        except Exception:
-            pass
+            await timeout_task
+        except asyncio.CancelledError:
+            print("Timeout task was cancelled")
+        # manager.disconnect(websocket)
+        # try:
+        #     await websocket.close()
+        # except Exception:
+        #     pass
