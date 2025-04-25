@@ -36,11 +36,18 @@ async function startCameraAndSend(format = "jpg") {
       if (!blob) return;
       const buffer = await blob.arrayBuffer();
 
-      // ヘッダー付与（"png" or "jpg"の3バイト）
-      const header = new TextEncoder().encode(format.padEnd(3, '\0')).slice(0, 3);
-      const payload = new Uint8Array(header.length + buffer.byteLength);
-      payload.set(header, 0);
-      payload.set(new Uint8Array(buffer), 3);
+      const send_timestamp = Date.now();
+      const header = {
+        format: format, // "jpg" など
+        send_timestamp: send_timestamp,
+      };
+      const header_bytes = new TextEncoder().encode(JSON.stringify(header));
+      const header_len = new Uint8Array(new Uint32Array([header_bytes.length]).buffer); // 4byte little-endian
+
+      const payload = new Uint8Array(header_len.length + header_bytes.length + buffer.byteLength);
+      payload.set(header_len, 0);
+      payload.set(header_bytes, 4);
+      payload.set(new Uint8Array(buffer), 4 + header_bytes.length);
 
       ws_map.value["video_stream"]?.send(payload);
     }, `image/${format}`);
@@ -131,13 +138,36 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
     console.log("Empty or invalid frame received, skipping update.");
     return;
   }
-  const header = await arrayBuffer.slice(0,3).arrayBuffer()
-  const formatBytes = new Uint8Array(header);
-  const format = new TextDecoder("utf-8").decode(formatBytes); // "png" または "jpg"
+  // const header = await arrayBuffer.slice(0,3).arrayBuffer()
+  // const formatBytes = new Uint8Array(header);
+  // const format = new TextDecoder("utf-8").decode(formatBytes); // "png" または "jpg"
 
-  const mimeType = format === "png" ? "image/png" : "image/jpeg";
-  const frameBytes = arrayBuffer.slice(3);
+  // const mimeType = format === "png" ? "image/png" : "image/jpeg";
+  // const frameBytes = arrayBuffer.slice(3);
+  const now = Date.now();
 
+  const headerLenBytes = await arrayBuffer.slice(0, 4).arrayBuffer();
+  const headerLen = new DataView(headerLenBytes).getUint32(0, true);
+
+  const headerBytes = await arrayBuffer.slice(4, 4 + headerLen).arrayBuffer();
+  const headerText = new TextDecoder().decode(headerBytes);
+  const header = JSON.parse(headerText);
+
+  const sendTs = header.send_timestamp;
+  const receiveTs = header.receive_timestamp;
+  const roundTrip = now - sendTs;
+  const serverDelay = receiveTs - sendTs;
+  const clientDelay = now - receiveTs;
+
+  console.log("Video timestamps:", { sendTs, receiveTs, now });
+  console.log(`Total: ${roundTrip}ms | Server: ${serverDelay}ms | Client: ${clientDelay}ms`);
+
+  // 描画用メタデータにも表示可能
+  text.value = `RTT: ${roundTrip}ms (Server: ${serverDelay}ms, Client: ${clientDelay}ms)`;
+
+  const frameBytes = await arrayBuffer.slice(4 + headerLen).arrayBuffer();
+  const mimeType = header.format === "png" ? "image/png" : "image/jpeg";
+  
   const blob = new Blob([frameBytes], { type: mimeType });
   imgBlobUrl.value = URL.createObjectURL(blob);
   // requestData(topic,path);

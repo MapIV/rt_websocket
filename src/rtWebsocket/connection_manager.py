@@ -2,6 +2,8 @@ from fastapi import WebSocket
 from typing import List
 import logging
 
+from fastapi.websockets import WebSocketState
+
 logger = logging.getLogger("ConnectionManager")
 
 class ConnectionManager:
@@ -30,4 +32,5 @@ class ConnectionManager:
 
     async def broadcast_bytes(self, message: bytes):
         for connection in self.active_connections:
+            # if connection.client_state == WebSocketState.CONNECTED:
             await connection.send_bytes(message)    

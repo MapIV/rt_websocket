@@ -4,6 +4,7 @@ import json
 import os
 import time
 from fastapi import WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
 from rtWebsocket.connection_manager import ConnectionManager
 from rtWebsocket.services.bson_sender import BsonSender
 from rtWebsocket.services.flatten_sender import FlattenSender
@@ -12,6 +13,43 @@ from rtWebsocket.services.video_v9_sender import VideoV9Sender
 from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 10  # 5秒以上リクエストが来なかったら切断
+
+class MessageReceiver:
+    def __init__(self, websocket: WebSocket):
+        self.websocket = websocket
+        self.latest_message = None
+        self.lock = asyncio.Lock()
+        self.running = True
+        self.receive_task = asyncio.create_task(self._receiver())
+
+    async def _receiver(self):
+        try:
+            while self.running:
+                print(f"receive time: {time.time()}")
+                if self.websocket.client_state != WebSocketState.CONNECTED:
+                    break
+                message = await self.websocket.receive()
+                async with self.lock:
+                    self.latest_message = message
+        except WebSocketDisconnect:
+            print("WebSocket disconnected")
+        except Exception as e:
+            print(f"Receiver error: {e}")
+
+    async def get_latest(self):
+        async with self.lock:
+            msg = self.latest_message
+            self.latest_message = None
+            return msg
+
+    async def close(self):
+        self.running = False
+        self.receive_task.cancel()
+        print("Receiver closed")
+        try:
+            await self.receive_task
+        except asyncio.CancelledError:
+            pass
 
 #  fastAPIのinstanceを受け取る
 async def read_root():
@@ -31,6 +69,8 @@ async def _check_timeout(websocket: WebSocket, last_request_time: dict, manager:
     while True:
         try:
             await asyncio.sleep(1)  # 1秒ごとにチェック
+            if websocket.client_state != WebSocketState.CONNECTED:
+                break
             print (f"os.getloadavg(): {os.getloadavg()}")
             if time.time() - last_request_time['time'] > TIMEOUT_SECONDS:
                 print(f"last_request_time: {last_request_time}")
@@ -47,6 +87,8 @@ async def _check_timeout(websocket: WebSocket, last_request_time: dict, manager:
         
 async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is_sender: bool = False):
     await manager.connect(websocket)
+    receiver = MessageReceiver(websocket)
+    
     active_topics = {}  
     last_request_time = {"time": time.time()} 
     
@@ -57,7 +99,11 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
     try:
         while True:
             try:
-                message = await websocket.receive()
+                # message = await websocket.receive()
+                message = await receiver.get_latest()
+                if message is None:
+                    await asyncio.sleep(0.01)
+                    continue
                 # print(f"message received time {time.time()}")
                 # print(f'message: {message}')
                 if "text" in message:
@@ -134,21 +180,46 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                         last_request_time["time"] = time.time()
                     # print(f"Received raw bytes of size: {len(message['bytes'])}")
                     # await manager.broadcast_bytes(message["bytes"])
-                    asyncio.create_task(manager.broadcast_bytes(message["bytes"])) #並行処理？
-                # print(f"message handled time {time.time()}")
+                    # asyncio.create_task(manager.broadcast_bytes(message["bytes"])) #並行処理？
+                    data = message["bytes"]
+                    try:
+                        header_len = int.from_bytes(data[:4], byteorder='little')
+                        header_bytes = data[4:4+header_len]
+                        body = data[4+header_len:]
+
+                        header = json.loads(header_bytes.decode("utf-8"))
+                        header["receive_timestamp"] = int(time.time() * 1000)
+
+                        new_header_bytes = json.dumps(header).encode("utf-8")
+                        new_header_len = len(new_header_bytes).to_bytes(4, byteorder='little')
+
+                        new_data = new_header_len + new_header_bytes + body
+                        await manager.broadcast_bytes(new_data)
+
+                    except Exception as e:
+                        print("Failed to parse or broadcast video message:", e)
 
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
+                print("Running cleanup...")
+                await receiver.close()
+                print("Receiver closed")
                 break  # 必ずループを終了させる
 
             except Exception as inner_e:
                 print(f"Unexpected error inside loop: {inner_e}")
                 break
-
+    
+    except asyncio.CancelledError:
+            print("websocket_endpoint loop cancelled.")
+            raise
     except Exception as e:
         logger.error(f"Error in websocket_endpoint: {str(e)}")
 
     finally:
+        print("Running cleanup...")
+        await receiver.close()
+        print("Receiver closed")
         if is_sender:
             timeout_task.cancel()
             try:
