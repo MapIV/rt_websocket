@@ -36,9 +36,7 @@ class MessageReceiver:
                     print("Receiver got CancelledError")
                     self.running = False
                     raise
-                # except WebSocketDisconnect:
-                #     print("WebSocket disconnected (inner)")
-                #     raise
+
                 except RuntimeError as e:
                     print(f"RuntimeError in receiver: {e}")
                     self.running = False
@@ -51,8 +49,6 @@ class MessageReceiver:
         finally:
             print(">>> finally called <<<")
             self.running = False
-            print(f"<<finished>>")
-            # await self.close()
 
     async def get_latest(self):
         async with self.lock:
