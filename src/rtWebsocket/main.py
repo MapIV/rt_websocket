@@ -101,6 +101,7 @@ async def _check_timeout(websocket: WebSocket, last_request_time: dict, manager:
             if websocket.client_state != WebSocketState.CONNECTED:
                 break
             print (f"os.getloadavg(): {os.getloadavg()}")
+            print(f"time: {time.time()}")
             if time.time() - last_request_time['time'] > TIMEOUT_SECONDS:
                 print(f"last_request_time: {last_request_time}")
                 print(f"Timeout: No request_data for {TIMEOUT_SECONDS}s. Closing WebSocket.")
@@ -205,6 +206,7 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                 elif "bytes" in message:
                     if is_sender:
                         last_request_time["time"] = time.time()
+                        print(f"received  time: {last_request_time['time']}")
                     # print(f"Received raw bytes of size: {len(message['bytes'])}")
                     # await manager.broadcast_bytes(message["bytes"])
                     # asyncio.create_task(manager.broadcast_bytes(message["bytes"])) #並行処理？
