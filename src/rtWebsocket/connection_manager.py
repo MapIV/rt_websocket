@@ -2,6 +2,8 @@ from fastapi import WebSocket
 from typing import List
 import logging
 
+from fastapi.websockets import WebSocketState
+
 logger = logging.getLogger("ConnectionManager")
 
 class ConnectionManager:
@@ -24,10 +26,22 @@ class ConnectionManager:
     async def send_text(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
         
-    async def broadcast(self, message: str):
+    async def broadcast(self, message: str, exclude: List[WebSocket] = []):
         for connection in self.active_connections:
-            await connection.send_text(message)
+            if connection in exclude:
+                continue
+            try:
+                await connection.send_text(message)
+            except Exception as e:
+                logger.error(f"Error sending message: {e}")
+                self.disconnect(connection)
 
-    async def broadcast_bytes(self, message: bytes):
+    async def broadcast_bytes(self, message: bytes, exclude: List[WebSocket] = []):
         for connection in self.active_connections:
-            await connection.send_bytes(message)    
+            if connection in exclude:
+                continue
+            try:
+                await connection.send_bytes(message)
+            except Exception as e:
+                logger.error(f"Error sending bytes: {e}")
+                self.disconnect(connection) 
