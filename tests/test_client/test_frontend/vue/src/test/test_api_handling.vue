@@ -67,7 +67,7 @@ function initWebsocket(topic: string,path: string) {
   if (path === "webcamera") {
     ws_map.value[topic] = new WebSocket("ws://localhost:8888/ws/webcamera"); // test
   } else {
-    ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws");
+    ws_map.value[topic] = new WebSocket("ws://localhost:8888/ws");
     console.log("ws://localhost:8888/ws");
   }
 
@@ -84,6 +84,8 @@ function initWebsocket(topic: string,path: string) {
   };
 
   ws_map.value[topic].onmessage = async (event) => {
+    console.log("Received message:", event.data);
+    console.log("topic:", topic);
     try {
       if (topic === "video_stream") {
         await create_video(event, topic,path);
@@ -172,7 +174,7 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
     imgEl.src = objectUrl;
   }
   console.log("topic,path",topic,path);
-  requestData(topic,path);
+  // requestData(topic,path);
   isProcessing = false;
 }
 
@@ -227,8 +229,8 @@ async function create_text (event: MessageEvent, topic: string, path: string) {
 
   const json = JSON.parse(event.data);
   console.log("Received JSON data:", json);
-  console.log("header:", json.header);
-  console.log("data:", json.data);
+  // console.log("header:", json.header);
+  // console.log("data:", json.data);
   text.value = json.data;
   requestData(topic, path);
 }
@@ -236,7 +238,7 @@ async function create_text (event: MessageEvent, topic: string, path: string) {
 
 onMounted(() => {
   initWebsocket("video_stream","webcamera"); // docker container内のパス
-//   initWebsocket("pcdfile","./test/sample_pcdfile/map-18400_-93500_converted_converted.pcd");// docker container内のパス
+  // initWebsocket("pcdfile","./test/sample_pcdfile/map-18400_-93500_converted_converted.pcd");// docker container内のパス
   // initWebsocket("text","test_path");// docker container内のパス
 //   startCameraAndSend("jpg");
 });
