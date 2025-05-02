@@ -15,18 +15,26 @@ class WebCameraClient:
 
     async def connect(self):
         async with websockets.connect(self.uri) as websocket:
+            await self.send_frame(websocket)
             print("接続しました")
             while True:
-                message = await websocket.recv()
-                await self.handle_message(websocket, message)
+                try:
+                    message = await asyncio.wait_for(websocket.recv(), timeout=15)
+                    await self.handle_message(websocket, message)
+                except Exception as e:
+                    print("Error:", e)  
+                    break
+                except KeyboardInterrupt:
+                    print("KeyboardInterrupt")
+                    break
+                except websockets.ConnectionClosed:
+                    print("Connection closed")
+                    break
 
     async def handle_message(self, websocket, message):
-        try:
-            msg = json.loads(message)
-            if msg["type"] == "request_data":
-                await self.send_frame(websocket)
-        except:
-            pass
+        msg = json.loads(message)
+        if msg["type"] == "request_data":
+            await self.send_frame(websocket)
 
     async def send_frame(self, websocket):
         ret, frame = self.cap.read()
@@ -46,44 +54,6 @@ class WebCameraClient:
         payload = header_len + header_json + image_bytes
 
         await websocket.send(payload)
-
-# async def send_camera_frames():
-#     uri = "ws://localhost:8888/ws/webcamera/sender"
-#     cap = cv2.VideoCapture(0)  # 0番のカメラを使用
-#     if not cap.isOpened():
-#         print("カメラが開けませんでした")
-#         return
-
-#     async with websockets.connect(uri) as websocket:
-#         print("接続しました")
-#         try:
-#             while True:
-#                 ret, frame = cap.read()
-#                 if not ret:
-#                     print("フレーム取得失敗")
-#                     break
-
-#                 # JPEGでエンコード
-#                 ret, buffer = cv2.imencode(".jpg", frame)
-#                 if not ret:
-#                     print("エンコード失敗")
-#                     continue
-
-#                 image_bytes = buffer.tobytes()
-
-#                 header = {
-#                     "format": "jpeg",
-#                     "send_timestamp": int(time.time() * 1000)
-#                 }
-#                 header_json = json.dumps(header).encode("utf-8")
-#                 header_len = struct.pack("<I", len(header_json))  # 4バイトLittle Endian
-
-#                 payload = header_len + header_json + image_bytes
-#                 await websocket.send(payload)
-
-#                 await asyncio.sleep(0.2)  # 200msごとに送信
-#         finally:
-#             cap.release()
 
 if __name__ == "__main__":
     uri = "ws://localhost:8888/ws/webcamera/sender"

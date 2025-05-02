@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import PcdViewer from './pcdViewer.vue';
 import { BSON } from 'bson';
 import { array, buffer } from 'three/tsl';
+import { ByteType } from 'three';
 const ws_map = ref<{ [key: string]: WebSocket | null }>({ video_stream: null, pcdfile: null });
 const viewer = ref<Viewer | null>(null)
 const imgBlobUrl = ref<string | null>(null);
@@ -12,7 +13,7 @@ const sourceBuffer = ref<SourceBuffer | null>(null);
 const bufferQueue = ref<ArrayBuffer[]>([]);
   let stream: MediaStream | null = null;
   let intervalId: number | null = null;
-
+let isProcessing = false;
 let text = ref<string>('');
 interface Viewer {
   createPointCloud: (points: Float32Array, fields:string[], fieldData?: Float32Array) => void;
@@ -131,27 +132,21 @@ function requestData(topic: string,path: string) {
 }
 
 async function create_video (event: MessageEvent<any>,topic: string,path: string) {
-    const arrayBuffer = event.data
-  console.log("received video time: ", new Date().getTime());
   // requestData(topic,path);
-  if (arrayBuffer.byteLength === 0) {
-    console.log("Empty or invalid frame received, skipping update.");
+  if (event.data.byteLength === 0 || !(event.data instanceof Blob) || isProcessing) {
     return;
   }
+  isProcessing = true;
   const now = Date.now();
-
-  const headerLenBytes = await arrayBuffer.slice(0, 4).arrayBuffer();
-  console.log("headerlenbytes type : ", typeof headerLenBytes);
-  console.log("headerlenbytes : ", headerLenBytes);
-  // const headerLen = new DataView(headerLenBytes.buffer).getUint32(0, true);
+  const arrayBuffer = await event.data.arrayBuffer();
+  const headerLenBytes = arrayBuffer.slice(0, 4);
   const headerLen = new DataView(
-  headerLenBytes instanceof ArrayBuffer ? headerLenBytes : headerLenBytes.buffer
+  headerLenBytes instanceof ArrayBuffer ? headerLenBytes : headerLenBytes
 ).getUint32(0, true);
 
-  const headerBytes = await arrayBuffer.slice(4, 4 + headerLen).arrayBuffer();
-  // const headerText = new TextDecoder().decode(headerBytes.arrayBuffer);
+  const headerBytes = arrayBuffer.slice(4, 4 + headerLen);
   const headerText = new TextDecoder().decode(
-  headerBytes instanceof ArrayBuffer ? headerBytes : headerBytes.buffer
+  headerBytes instanceof ArrayBuffer ? headerBytes : headerBytes
 );
   const header = JSON.parse(headerText);
 
@@ -176,7 +171,9 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
   if (imgEl) {
     imgEl.src = objectUrl;
   }
+  console.log("topic,path",topic,path);
   requestData(topic,path);
+  isProcessing = false;
 }
 
 async function create_pcd (event: MessageEvent, topic: string,path: string) {

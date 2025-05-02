@@ -14,80 +14,6 @@ from rtWebsocket.services.video_sender import VideoSender
 
 TIMEOUT_SECONDS = 10  # 5秒以上リクエストが来なかったら切断
 
-# class MessageReceiver:
-#     def __init__(self, websocket: WebSocket):
-#         self.websocket = websocket
-#         self.latest_message = None
-#         self.lock = asyncio.Lock()
-#         self.running = True
-#         self.receive_task = asyncio.create_task(self._receiver())
-
-#     async def _receiver(self):
-#         try:
-#             while self.running:
-#                 if self.websocket.client_state != WebSocketState.CONNECTED:
-#                     print("WebSocket disconnected in _received")
-#                     break
-#                 try:
-#                     message = await self.websocket.receive()
-#                     if self.latest_message is not None:
-#                         print("Latest message already received")
-#                         continue
-#                     async with self.lock:
-#                         self.latest_message = message
-#                         print(f"Received message!")
-#                 except asyncio.CancelledError:
-#                     print("Receiver got CancelledError")
-#                     self.running = False
-#                     raise
-
-#                 except RuntimeError as e:
-#                     print(f"RuntimeError in receiver: {e}")
-#                     self.running = False
-#                     break
-#         except asyncio.CancelledError:
-#                 print("Receiver got CancelledError")
-#                 raise
-#         except Exception as e:
-#             print(f"Receiver error: {e}")
-#         finally:
-#             print(">>> finally called <<<")
-#             self.running = False
-
-#     async def get_latest(self):
-#         if self.latest_message is None:
-#             print("No latest message available")
-#             return None
-#         async with self.lock:
-#             msg = self.latest_message
-#             self.latest_message = None
-#             print(f"get_latest msg")
-#             return msg
-
-#     async def close(self):
-#         print("Starting receiver close procedure")
-#         self.running = False
-        
-#         if not self.receive_task.done():
-#             print("Cancelling receive task")
-#             self.receive_task.cancel()
-            
-#             try:
-#                 print("Awaiting cancelled task")
-#                 await asyncio.wait_for(self.receive_task, timeout=1.0)
-#                 print("Task await completed")
-#             except asyncio.TimeoutError:
-#                 print("Timeout waiting for task to cancel")
-#             except asyncio.CancelledError:
-#                 print("Receiver task was cancelled as expected")
-#             except Exception as e:
-#                 print(f"Error awaiting cancelled task: {e}")
-#         else:
-#             print("Receive task was already done")
-            
-#         print("Receiver closed")
-#         print("Receiver perfectly closed")
-
 #  fastAPIのinstanceを受け取る
 async def read_root():
     return {"message": "Hello World!"}
@@ -108,8 +34,6 @@ async def _check_timeout(websocket: WebSocket, last_request_time: dict, manager:
             await asyncio.sleep(1)  # 1秒ごとにチェック
             if websocket.client_state != WebSocketState.CONNECTED:
                 break
-            print (f"os.getloadavg(): {os.getloadavg()}")
-            print(f"time: {time.time()}")
             if time.time() - last_request_time['time'] > TIMEOUT_SECONDS:
                 print(f"last_request_time: {last_request_time}")
                 print(f"Timeout: No request_data for {TIMEOUT_SECONDS}s. Closing WebSocket.")
@@ -145,72 +69,16 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
 
                 if "text" in message:
                     message = json.loads(message["text"])
-                    if message["type"] == "subscribe":
-                        topic_name = message["topic"]
-                        print(f'topic_name: {topic_name}')
-                        path = message["path"]  
-                        print(f"topic name not in active_topics: {topic_name not in active_topics}")
 
-                        if topic_name not in active_topics:
-                            active_topics[topic_name] = {}
-                            if topic_name == "video_stream":
-                                # for testing, we are using a sample video
-                                video_path = os.path.abspath(path)
-                                print(f'video_path: {video_path}')
-                                sender = VideoSender(topic_name, video_path)
-
-                            if topic_name == "pcdfile":
-                                # for testing, we are using a sample pcd file
-                                pcd_path = os.path.abspath(path)
-                                print(f'pcd_path: {pcd_path}')
-                                # sender = BsonSender(topic_name, pcd_path)
-                                sender = FlattenSender(topic_name, pcd_path)
-
-                            if topic_name == "video_v9_stream":
-                                video_path = os.path.abspath(path)
-                                print(f'video_path: {video_path}')
-                                sender = VideoV9Sender(topic_name, video_path)
-
-                            if topic_name == "text":
-                                 sender = TextSender(topic_name)    
-
-                            active_topics[topic_name][path] = sender
-                            print(f"Subscribed to {topic_name}")
-
-                        print(f'active_topics: {active_topics}')
-
-                    elif message["type"] == "unsubscribe":
-                        topic_name = message["topic"]
-
-                        if topic_name in active_topics:
-                            active_topics[topic_name][path].cleanup()
-                            del active_topics[topic_name][path]
-
-                    elif message["type"] == "request_data":
-                        topic_name = message["topic"]
+                    if message["type"] == "request_data":
                         if is_sender:
                             last_request_time["time"] = time.time()
                         # print(f"message: {message}")
-
+                        # 他のclientにrequest_dataを転送
                         await manager.broadcast(json.dumps(message), exclude=[websocket])
-                        # if topic_name in active_topics:
-                        #     sender = active_topics[topic_name][path]
-                        #     print('sender: ', sender)
-                        #     data = sender.get_data()
-                        #     print(f"data: {type(data)}")
-                        #     if data:
-                        #         if topic_name == "text":
-                        #             await manager.send_text(data, websocket)
-                        #         else:
-                        #             await manager.send_bytes(data, websocket)
-                        #         print(f"Sent data to {topic_name}")
 
                     elif message["type"] == "send_data":
-                        topic = message["topic"]
-                        data_type = message["data_type"]
                         data = message["data"]
-                        print(f"message type: {type(message)}")
-                        print(f"message json dumps type: {type(json.dumps(message))}")
 
                         await manager.broadcast(json.dumps(message) , exclude=[websocket])
 
@@ -218,10 +86,6 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                 elif "bytes" in message:
                     if is_sender:
                         last_request_time["time"] = time.time()
-                    #     print(f"received  time: {last_request_time['time']}")
-                    # print(f"Received raw bytes of size: {len(message['bytes'])}")
-                    # await manager.broadcast_bytes(message["bytes"])
-                    # asyncio.create_task(manager.broadcast_bytes(message["bytes"])) #並行処理？
                     data = message["bytes"]
                     try:
                         header_len = int.from_bytes(data[:4], byteorder='little')
@@ -251,25 +115,23 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
-        # if is_sender:
-            # timeout_task.cancel()
+        if is_sender:
+            timeout_task.cancel()
 
         print("WebSocket disconnected")
         print("Running cleanup...")
-        # await receiver.close()
         manager.disconnect(websocket)
         print("Receiver closed")
                 
     finally:
         logger.info("Cleaning up...")
-        # await receiver.close()
         logger.info("Cleaning receiver")
-        # if is_sender:
-        #     # timeout_task.cancel()
-        #     try:
-        #         await timeout_task
-        #     except asyncio.CancelledError:
-        #         print("Timeout task was cancelled")
+        if is_sender:
+            timeout_task.cancel()
+            try:
+                await timeout_task
+            except asyncio.CancelledError:
+                print("Timeout task was cancelled")
         for paths in active_topics.values():
             for sender in paths.values():
                 sender.cleanup()
