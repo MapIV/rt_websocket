@@ -34,26 +34,35 @@ class WebCameraClient:
     async def handle_message(self, websocket, message):
         msg = json.loads(message)
         if msg["type"] == "request_data":
+            print("get request_data")
             await self.send_frame(websocket)
 
     async def send_frame(self, websocket):
-        ret, frame = self.cap.read()
-        if not ret:
-            return
-        ret, buffer = cv2.imencode(".jpg", frame)
-        if not ret:
-            return
+        # ret, frame = self.cap.read()
+        # if not ret:
+        #     return
+        # ret, buffer = cv2.imencode(".jpg", frame)
+        # if not ret:
+        #     return
 
-        image_bytes = buffer.tobytes()
-        header = {
-            "format": "jpeg",
-            "send_timestamp": int(time.time() * 1000)
+        # image_bytes = buffer.tobytes()
+        # header = {
+        #     "format": "jpeg",
+        #     "send_timestamp": int(time.time() * 1000)
+        # }
+        # header_json = json.dumps(header).encode("utf-8")
+        # header_len = struct.pack("<I", len(header_json))
+        # payload = header_len + header_json + image_bytes
+
+        # await websocket.send(payload)
+        message = {
+            "type": "text_send_test",
+            "data": {
+                "format": "jpeg",
+                "send_timestamp": int(time.time() * 1000)
+            }
         }
-        header_json = json.dumps(header).encode("utf-8")
-        header_len = struct.pack("<I", len(header_json))
-        payload = header_len + header_json + image_bytes
-
-        await websocket.send(payload)
+        await websocket.send(json.dumps(message))   
 
 if __name__ == "__main__":
     uri = "ws://localhost:8888/ws/webcamera/sender"

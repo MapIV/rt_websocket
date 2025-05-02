@@ -54,9 +54,9 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
     active_topics = {}  
     last_request_time = {"time": time.time()} 
     
-    if is_sender:
-        #タイムアウトチェックのタスクを開始
-        timeout_task = asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
+    # if is_sender:
+    #     #タイムアウトチェックのタスクを開始
+    #     timeout_task = asyncio.create_task(_check_timeout(websocket, last_request_time, manager, active_topics))
 
     try:
         while (websocket.client_state == WebSocketState.CONNECTED):
@@ -71,10 +71,9 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                     message = json.loads(message["text"])
 
                     if message["type"] == "request_data":
+                        print("get request_data")   
                         if is_sender:
                             last_request_time["time"] = time.time()
-                        # print(f"message: {message}")
-                        # 他のclientにrequest_dataを転送
                         await manager.broadcast(json.dumps(message), exclude=[websocket])
 
                     elif message["type"] == "send_data":
@@ -82,11 +81,12 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
 
                         await manager.broadcast(json.dumps(message) , exclude=[websocket])
 
-
                 elif "bytes" in message:
+                    print("bytes")
                     if is_sender:
                         last_request_time["time"] = time.time()
                     data = message["bytes"]
+                    print("data is sent")
                     try:
                         header_len = int.from_bytes(data[:4], byteorder='little')
                         header_bytes = data[4:4+header_len]
@@ -99,9 +99,15 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
                         new_header_len = len(new_header_bytes).to_bytes(4, byteorder='little')
 
                         new_data = new_header_len + new_header_bytes + body
-                        # print("websocket manager:", manager.active_connections)
-                        # print("is_sender: ", is_sender) 
+         
                         await manager.broadcast_bytes(new_data , exclude=[websocket])
+                        message = {
+                            "type": "request_data",
+                        }
+                        await asyncio.sleep(0.01)
+                        print("request_data")
+                        await manager.send_bytes(json.dumps(message) , websocket)
+                        print("request_data sent")
 
                     except Exception as e:
                         print("Failed to parse or broadcast video message:", e)
@@ -109,32 +115,25 @@ async def websocket_endpoint(websocket: WebSocket, manager: ConnectionManager,is
             except Exception as inner_e:
                 print(f"Unexpected error inside loop: {inner_e}")
                 break
-    
-    except Exception as e:
-        logger.error(f"Error in websocket_endpoint: {str(e)}")
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
-        if is_sender:
-            timeout_task.cancel()
 
         print("WebSocket disconnected")
         print("Running cleanup...")
         manager.disconnect(websocket)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
         print("Receiver closed")
-                
+    
+    except Exception as e:
+       logger.error(f"Error in websocket_endpoint: {str(e)}")
+
     finally:
         logger.info("Cleaning up...")
         logger.info("Cleaning receiver")
-        if is_sender:
-            timeout_task.cancel()
-            try:
-                await timeout_task
-            except asyncio.CancelledError:
-                print("Timeout task was cancelled")
-        for paths in active_topics.values():
-            for sender in paths.values():
-                sender.cleanup()
         manager.disconnect(websocket)
         try:
             await websocket.close()
