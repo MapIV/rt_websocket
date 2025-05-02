@@ -26,15 +26,22 @@ class ConnectionManager:
     async def send_text(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
         
-    async def broadcast(self, message: str):
+    async def broadcast(self, message: str, exclude: List[WebSocket] = []):
         for connection in self.active_connections:
-            await connection.send_text(message)
-
-    async def broadcast_bytes(self, message: bytes):
-        for connection in self.active_connections:
+            if connection in exclude:
+                continue
             try:
-            # if connection.client_state == WebSocketState.CONNECTED:
-                await connection.send_bytes(message)  
+                await connection.send_text(message)
             except Exception as e:
-                logger.error(f"Error sending bytes to {connection}: {e}")
-                self.disconnect(connection)  
+                logger.error(f"Error sending message: {e}")
+                self.disconnect(connection)
+
+    async def broadcast_bytes(self, message: bytes, exclude: List[WebSocket] = []):
+        for connection in self.active_connections:
+            if connection in exclude:
+                continue
+            try:
+                await connection.send_bytes(message)
+            except Exception as e:
+                logger.error(f"Error sending bytes: {e}")
+                self.disconnect(connection) 

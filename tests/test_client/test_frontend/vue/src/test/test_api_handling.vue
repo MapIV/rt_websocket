@@ -64,7 +64,7 @@ function stopCameraAndSending() {
 function initWebsocket(topic: string,path: string) {
   if (ws_map.value[topic]) return; 
   if (path === "webcamera") {
-    ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws/webcamera"); // test
+    ws_map.value[topic] = new WebSocket("ws://localhost:8888/ws/webcamera"); // test
   } else {
     ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws");
     console.log("ws://localhost:8888/ws");
@@ -78,8 +78,8 @@ function initWebsocket(topic: string,path: string) {
       subscribe(topic,path);
 
     // request first data
-    requestData(topic,path);
     }
+    requestData(topic,path);
   };
 
   ws_map.value[topic].onmessage = async (event) => {
@@ -138,19 +138,21 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
     console.log("Empty or invalid frame received, skipping update.");
     return;
   }
-  // const header = await arrayBuffer.slice(0,3).arrayBuffer()
-  // const formatBytes = new Uint8Array(header);
-  // const format = new TextDecoder("utf-8").decode(formatBytes); // "png" または "jpg"
-
-  // const mimeType = format === "png" ? "image/png" : "image/jpeg";
-  // const frameBytes = arrayBuffer.slice(3);
   const now = Date.now();
 
   const headerLenBytes = await arrayBuffer.slice(0, 4).arrayBuffer();
-  const headerLen = new DataView(headerLenBytes).getUint32(0, true);
+  console.log("headerlenbytes type : ", typeof headerLenBytes);
+  console.log("headerlenbytes : ", headerLenBytes);
+  // const headerLen = new DataView(headerLenBytes.buffer).getUint32(0, true);
+  const headerLen = new DataView(
+  headerLenBytes instanceof ArrayBuffer ? headerLenBytes : headerLenBytes.buffer
+).getUint32(0, true);
 
   const headerBytes = await arrayBuffer.slice(4, 4 + headerLen).arrayBuffer();
-  const headerText = new TextDecoder().decode(headerBytes);
+  // const headerText = new TextDecoder().decode(headerBytes.arrayBuffer);
+  const headerText = new TextDecoder().decode(
+  headerBytes instanceof ArrayBuffer ? headerBytes : headerBytes.buffer
+);
   const header = JSON.parse(headerText);
 
   const sendTs = header.send_timestamp;
@@ -165,12 +167,16 @@ async function create_video (event: MessageEvent<any>,topic: string,path: string
   // 描画用メタデータにも表示可能
   text.value = `RTT: ${roundTrip}ms (Server: ${serverDelay}ms, Client: ${clientDelay}ms)`;
 
-  const frameBytes = await arrayBuffer.slice(4 + headerLen).arrayBuffer();
+  const frameBytes = await arrayBuffer.slice(4 + headerLen)
   const mimeType = header.format === "png" ? "image/png" : "image/jpeg";
   
   const blob = new Blob([frameBytes], { type: mimeType });
-  imgBlobUrl.value = URL.createObjectURL(blob);
-  // requestData(topic,path);
+  const objectUrl = URL.createObjectURL(blob);
+  const imgEl = document.getElementById("imgTest") as HTMLImageElement;
+  if (imgEl) {
+    imgEl.src = objectUrl;
+  }
+  requestData(topic,path);
 }
 
 async function create_pcd (event: MessageEvent, topic: string,path: string) {
@@ -254,30 +260,14 @@ onUnmounted(() => {
   <video id="myCam" width="320" height="240" autoplay muted></video>
   <video id="streamVideo" width="320" height="240" autoplay controls></video>
   <canvas id="videoCanvas" width="1000" height="100"></canvas>
-  <v-img :src="imgBlobUrl" v-if="imgBlobUrl" width="1000"/>
+  <img id="imgTest"  width="1000" style="background-color: black;"/>
   <h1>test1</h1>
   <div>{{text}}</div>
   <button v-on:click="stopCameraAndSending"></button>
   
   <h1>test2</h1>
   <PcdViewer ref="viewer"/>
-  <!-- <h1>H.264 Video Stream</h1>
-  <div >
-    <video id="videoContainer"></video>
-  </div>
 
-  <h1>Local WebM Video</h1>
-<div id="videoContainer2">
-  <video width="640" height="480" controls autoplay>
-    <source src="/src/assets/test_video1.webm" type="video/webm">
-    Your browser does not support the video tag.
-  </video>
-</div>
-<h1>rtc</h1>
-    <video controls autoplay>
-    <source src="http://localhost:8080/video?video_path=../src/sample_video/test_video1.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-</video> -->
 </template>
 
 

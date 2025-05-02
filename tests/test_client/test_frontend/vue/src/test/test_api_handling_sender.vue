@@ -12,7 +12,7 @@ const sourceBuffer = ref<SourceBuffer | null>(null);
 const bufferQueue = ref<ArrayBuffer[]>([]);
   let stream: MediaStream | null = null;
   let intervalId: number | null = null;
-
+  let recorder: MediaRecorder | null = null;
 let text = ref<string>('');
 interface Viewer {
   createPointCloud: (points: Float32Array, fields:string[], fieldData?: Float32Array) => void;
@@ -59,12 +59,13 @@ function stopCameraAndSending() {
   if (intervalId !== null) {
     clearInterval(intervalId);
   }
+  // recorder?.stop()
 }
 
 function initWebsocket(topic: string,path: string) {
   if (ws_map.value[topic]) return; 
   if (path === "webcamera") {
-    ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws/webcamera/sender"); // test
+    ws_map.value[topic] = new WebSocket("ws://localhost:8888/ws/webcamera/sender"); // test
   } else {
     ws_map.value[topic] = new WebSocket("ws://localhost:8080/ws");
     console.log("ws://localhost:8888/ws");
